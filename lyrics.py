@@ -3,30 +3,8 @@
 class Lyrics:
     """Data type for representing karaoke lyrics"""
 
-    def __init__(self, lyricsData, lyricsFormat="lyrics3v2"):
-        """Create a new Lyrics instance
-
-        Args:
-            lyricsData (str): lyrics data
-
-        Kwargs:
-            lyricsFormat (str): format of lyricsData; can be one of lyrics3v2,
-                [more to come]. Defaults to "lyrics3v2".
-        """
-        raise NotImplemented
-
-    def dump(self, lyricFormat="lyrics3v2"):
-        """Dump a raw text representation of the lyrics
-
-        Kwargs:
-            lyricsFormat (str): format to dump lyrics in; can be one of
-                lyrics3v2, [more to come]. Defaults to "lyrics3v2".
-
-        Returns:
-            str. A string representation of the lyrics suitable for
-            saving to a file or passing to the Lyrics constructor. The
-            string includes all timestamps and escape sequences.
-        """
+    def __init__(self):
+        """Create a new, empty Lyrics instance """
         raise NotImplemented
 
     def getMetadata(self):
@@ -73,5 +51,28 @@ class Lyrics:
         Returns:
             int. index of the phrase in self.getPhrases() that is being
             sung at time time.
+        """
+        raise NotImplemented
+
+    def setMetadata(self, artist=None, album=None, title=None, length=None):
+        """Set the metadata for this song
+
+        Kwargs:
+            artist (str): Name of the artist
+            album (str): Name of the album
+            title (str): Title of the song
+            length (int): Length of the song, in seconds
+        """
+        raise NotImplemented
+
+    def addPhrase(self, phrase, times):
+        """Add a phrase to this song
+
+        Args:
+            phrase (str): Phrase to append to the end of the song; may contain
+                newlines and trailing spaces.
+            times (list): List of integer timestamps, in hundredths of a
+                second, when the phrase is to be sung. The list must not be
+                empty.
         """
         raise NotImplemented
