@@ -25,7 +25,7 @@ class Lyrics:
         Returns:
             str. A string representation of the lyrics suitable for
             saving to a file or passing to the Lyrics constructor. The
-            string includes all timing markers and escape sequences.
+            string includes all timestamps and escape sequences.
         """
         raise NotImplemented
 
@@ -47,8 +47,8 @@ class Lyrics:
         Returns:
             list. A representation of the lyrics as a list of strings.
             Each string is a separate "phrase": a substring of the lyrics
-            delimited by timing markers or start/end of file. The phrases
-            contain no timing markers, or escape sequences, but
+            delimited by timestamps or start/end of file. The phrases
+            contain no timestamps or escape sequences, but
             may contain newlines or trailing spaces.
         """
         raise NotImplemented
