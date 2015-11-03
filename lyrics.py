@@ -1,11 +1,18 @@
 #! /usr/bin/python2
 
+import copy
+import bisect
+
+METADATA_FIELDS = ["artist", "album", "title", "length"]
+
 class Lyrics:
     """Data type for representing karaoke lyrics"""
 
     def __init__(self):
         """Create a new, empty Lyrics instance """
-        raise NotImplementedError
+        self.phrases = []
+        self.times = []
+        self.metadata = {}
 
     def getMetadata(self):
         """Get a dictionary of song metadata
@@ -17,7 +24,7 @@ class Lyrics:
                 "title" (str): Title of the song
                 "length" (int): Length of the song in seconds
         """
-        raise NotImplementedError
+        return copy.copy(self.metadata)
 
     def getPhrases(self):
         """Get the lyrics as a list of phrases
@@ -29,7 +36,7 @@ class Lyrics:
             contain no timestamps or escape sequences, but
             may contain newlines or trailing spaces.
         """
-        raise NotImplementedError
+        return copy.copy(self.phrases)
 
     def getTimes(self):
         """Get all timing data
@@ -40,7 +47,7 @@ class Lyrics:
                 phrase (int): index of a phrase in the list returned by
                     self.getPhrases()
         """
-        raise NotImplementedError
+        return copy.copy(self.times)
 
     def getCurrentIndex(self, time):
         """Get the index of the current phrase of the song
@@ -50,11 +57,19 @@ class Lyrics:
 
         Returns:
             int. index of the phrase in self.getPhrases() that is being
-            sung at time time.
+            sung at time time. If there's no phrase at time time (it's before
+            the vocals start), return -1.
         """
-        raise NotImplementedError
+        # Search for last entry in self.times that has a time <= time
+        idx = bisect.bisect(self.times, (time, len(self.phrases))) - 1
 
-    def setMetadata(self, artist=None, album=None, title=None, length=None):
+        if idx >= 0:
+            return self.times[idx][1]
+        else:
+            # the time we were given comes before any timestamps
+            return -1
+
+    def setMetadata(self, **metadata):
         """Set the metadata for this song
 
         Kwargs:
@@ -62,8 +77,11 @@ class Lyrics:
             album (str): Name of the album
             title (str): Title of the song
             length (int): Length of the song, in seconds
+        Other Kwargs will be ignored.
         """
-        raise NotImplementedError
+        metadata = {k: v for (k,v) in metadata.iteritems()
+                    if k in METADATA_FIELDS}
+        self.metadata.update(metadata)
 
     def addPhrase(self, phrase, times):
         """Add a phrase to this song
@@ -75,4 +93,6 @@ class Lyrics:
                 second, when the phrase is to be sung. The list must not be
                 empty.
         """
-        raise NotImplementedError
+        self.phrases.append(phrase)
+        for time in times:
+            bisect.insort(self.times, (time, len(self.phrases)-1))
