@@ -16,11 +16,17 @@ def read(filename):
     Returns:
         str. Lyrics3 v2.00 data, including "LYRICSBEGIN" but not including
         size descriptor and "LYRICS200" string.
+
+    Raises:
+        ValueError: file does not contain Lyrics3 v2.00 data
     """
 
     with open(filename, 'rb') as f:
         f.seek(SIZE_OFFSET, 2)
         size = int(f.read(SIZE_LENGTH))
+        if f.read(len(END_TAG)) != END_TAG:
+            raise ValueError, "{} tag not found in file {}".format(END_TAG,
+                                                                   filename)
 
         f.seek(SIZE_OFFSET - size, 2)
         return f.read(size)
