@@ -5,7 +5,7 @@ class Lyrics:
 
     def __init__(self):
         """Create a new, empty Lyrics instance """
-        raise NotImplemented
+        raise NotImplementedError
 
     def getMetadata(self):
         """Get a dictionary of song metadata
@@ -17,7 +17,7 @@ class Lyrics:
                 "title" (str): Title of the song
                 "length" (int): Length of the song in seconds
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def getPhrases(self):
         """Get the lyrics as a list of phrases
@@ -29,7 +29,7 @@ class Lyrics:
             contain no timestamps or escape sequences, but
             may contain newlines or trailing spaces.
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def getTimes(self):
         """Get all timing data
@@ -40,7 +40,7 @@ class Lyrics:
                 phrase (int): index of a phrase in the list returned by
                     self.getPhrases()
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def getCurrentIndex(self, time):
         """Get the index of the current phrase of the song
@@ -52,7 +52,7 @@ class Lyrics:
             int. index of the phrase in self.getPhrases() that is being
             sung at time time.
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def setMetadata(self, artist=None, album=None, title=None, length=None):
         """Set the metadata for this song
@@ -63,7 +63,7 @@ class Lyrics:
             title (str): Title of the song
             length (int): Length of the song, in seconds
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def addPhrase(self, phrase, times):
         """Add a phrase to this song
@@ -75,4 +75,4 @@ class Lyrics:
                 second, when the phrase is to be sung. The list must not be
                 empty.
         """
-        raise NotImplemented
+        raise NotImplementedError

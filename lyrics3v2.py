@@ -44,7 +44,7 @@ def write(filename, lyricsData):
         lyricsData (str): Lyrics3 v2.00 data, including "LYRICSBEGIN"
             but not including size descriptor and "LYRICS200" string.
     """
-    raise NotImplemented
+    raise NotImplementedError
 
 def load(lyricsData):
     """Parse Lyrics3 v2.00 data
