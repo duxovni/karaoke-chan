@@ -9,13 +9,43 @@ def load(lyricsData):
     Args:
         lyricsData (str): String containing text and timestamps. There may be
         any number of timestamps, in any order, at any locations, but they must
-        all be of the form [mm:ss] or [mm:ss.xx].
+        all be of the form [mm:ss] or [mm:ss.xx]. If several timestamps appear
+        consecutively with nothing separating them, they are treated as all
+        applying to the nonempty phrase that follows, so that the phrase is
+        repeated at several different times in the song. If there's no initial
+        timestamp, then the initial phrase is treated as having timestamp
+        [00:00.00].
 
     Returns:
         Lyrics instance storing the phrases and timing from the provided lyrics,
         with no metadata
     """
-    raise NotImplementedError
+    lyrics = Lyrics()
+
+    terms = re.split("(\[\d\d:\d\d\]|\[\d\d:\d\d\.\d\d\])", lyricsData)
+
+    if terms[0] != "":
+        lyrics.addPhrase(terms[0], [0])
+
+    timedphrases = zip(terms[1::2], terms[2::2]) # pairs of timestamp and phrase
+
+    times = []
+    for (t, p) in timedphrases:
+        m = re.match("\[(\d\d):(\d\d)\.?(\d\d)?\]", t)
+        timeParts = m.groups('00')
+        time = (int(timeParts[0]) * 6000
+                + int(timeParts[1]) * 100
+                + int(timeParts[2]))
+        times.append(time)
+
+        if p != "":
+            lyrics.addPhrase(p, times)
+            times = []
+
+    if times != []:
+        lyrics.addPhrase("", times)
+
+    return lyrics
 
 def dump(lyrics, frac=False, crlf=False):
     """Dump timing data from a Lyrics instance into a string format
