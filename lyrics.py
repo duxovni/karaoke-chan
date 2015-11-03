@@ -41,15 +41,15 @@ class Lyrics:
         """
         raise NotImplemented
 
-    def getLines(self):
-        """Get the lyrics as a list of lines
+    def getPhrases(self):
+        """Get the lyrics as a list of phrases
 
         Returns:
-            list. A representation of the lyrics as a list of
-            lists. Each sublist corresponds to a line of the song, and
-            contains strings for individually-timed phrases. The phrases
-            contain no newlines, timing markers, or escape sequences, but
-            may have trailing spaces.
+            list. A representation of the lyrics as a list of strings.
+            Each string is a separate "phrase": a substring of the lyrics
+            delimited by timing markers or start/end of file. The phrases
+            contain no timing markers, or escape sequences, but
+            may contain newlines or trailing spaces.
         """
         raise NotImplemented
 
@@ -57,11 +57,10 @@ class Lyrics:
         """Get all timing data
 
         Returns:
-            list. A list of pairs (time, (line, phrase)), ordered by time::
+            list. A list of pairs (time, phrase), ordered by time::
                 time (int): start time of a lyric in hundredths of a second
-                line (int): index of a line in the list returned by
-                    self.getLines()
-                phrase (int): index of a phrase in self.getLines()[line]
+                phrase (int): index of a phrase in the list returned by
+                    self.getPhrases()
         """
         raise NotImplemented
 
@@ -72,10 +71,7 @@ class Lyrics:
             time (int): time in hundredths of a second
 
         Returns:
-            tuple. A pair (line, phrase) indicating the phrase that should be
-            sung at time time::
-                line (int): index of a line in the list returned by
-                    self.getLines()
-                phrase (int): index of a phrase in self.getLines()[line]
+            int. index of the phrase in self.getPhrases() that is being
+            sung at time time.
         """
         raise NotImplemented
