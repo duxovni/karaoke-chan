@@ -78,13 +78,13 @@ def load(lyricsData):
         fieldData = lyricsData[:fieldSize]
         lyricsData = lyricsData[fieldSize:]
 
-        if fieldId = "LYR":
+        if fieldId == "LYR":
             lyrics = timedtext.load(fieldData)
         elif fieldId == "EAL":
             metadata["album"] = fieldData
-        elif fieldId = "EAR":
+        elif fieldId == "EAR":
             metadata["artist"] = fieldData
-        elif fieldId = "ETT":
+        elif fieldId == "ETT":
             metadata["title"] = fieldData
         else:
             pass
