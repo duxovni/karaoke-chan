@@ -12,11 +12,11 @@ SIZE_OFFSET = -(SIZE_LENGTH + len(END_TAG) + ID3_LENGTH)
 FIELD_ID_LENGTH = 3
 FIELD_SIZE_LENGTH = 5
 
-def read(filename):
+def read(filepath):
     """Read Lyrics3 v2.00 data from an mp3 file
 
     Args:
-        filename (str): pathname of mp3 file containing Lyrics3 v2.00 data
+        filepath (str): pathname of mp3 file containing Lyrics3 v2.00 data
 
     Returns:
         str. Lyrics3 v2.00 data, including "LYRICSBEGIN" but not including
@@ -26,21 +26,21 @@ def read(filename):
         ValueError: file does not contain Lyrics3 v2.00 data
     """
 
-    with open(filename, 'rb') as f:
+    with open(filepath, 'rb') as f:
         f.seek(SIZE_OFFSET, 2)
         size = int(f.read(SIZE_LENGTH))
         if f.read(len(END_TAG)) != END_TAG:
             raise ValueError, "{} tag not found in file {}".format(END_TAG,
-                                                                   filename)
+                                                                   filepath)
 
         f.seek(SIZE_OFFSET - size, 2)
         return f.read(size)
 
-def write(filename, lyricsData):
+def write(filepath, lyricsData):
     """Write Lyrics3 v2.00 data to an mp3 file
 
     Args:
-        filename (str): pathname of mp3 file to write data to
+        filepath (str): pathname of mp3 file to write data to
         lyricsData (str): Lyrics3 v2.00 data, including "LYRICSBEGIN"
             but not including size descriptor and "LYRICS200" string.
     """
