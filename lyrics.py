@@ -29,12 +29,13 @@ class Lyrics:
     def getPhrases(self):
         """Get the lyrics as a list of phrases
 
-        Returns:
-            list. A representation of the lyrics as a list of strings.
-            Each string is a separate "phrase": a substring of the lyrics
-            delimited by timestamps or start/end of file. The phrases
-            contain no timestamps or escape sequences, but
-            may contain newlines or trailing spaces.
+        Returns: list. A representation of the lyrics as a list of
+            strings.  Each string is a separate "phrase": a substring
+            of the lyrics delimited by timestamps or start/end of
+            file. The phrases contain no timestamps or escape
+            sequences, but may contain newlines or trailing
+            spaces. All newlines will be '\n' characters.
+
         """
         return copy.copy(self.phrases)
 
@@ -93,6 +94,7 @@ class Lyrics:
                 second, when the phrase is to be sung. The list must not be
                 empty.
         """
+        phrase = '\n'.join(phrase.splitlines())
         self.phrases.append(phrase)
         for time in times:
             bisect.insort(self.times, (time, len(self.phrases)-1))
