@@ -28,6 +28,25 @@ class LyricsCtrl(wx.TextCtrl):
         self.times = lyrics.getTimes()
         self.SetValue(''.join(self.phrases))
 
+    def CenterPosition(self, pos):
+        boxHeight = self.GetClientSize()[1]
+        lineHeight = self.GetDefaultStyle().GetFont().GetPixelSize().GetHeight()
+        lineCount = boxHeight / lineHeight
+
+        currentLine = self.PositionToXY(pos)[1]
+        lastLine = self.PositionToXY(self.GetLastPosition())[1]
+
+        # As long as lineCount is nonzero, (lineCount-1)/2 and
+        # lineCount/2 must be two nonnegative numbers with sum
+        # lineCount-1, so the number of lines from topLine to
+        # bottomLine inclusive will be exactly lineCount.
+        topLine = max(currentLine - (lineCount-1)/2, 0)
+        bottomLine = min(currentLine + lineCount/2, lastLine)
+
+        self.ShowPosition(self.XYToPosition(0, topLine))
+        self.ShowPosition(self.XYToPosition(0, bottomLine))
+        self.ShowPosition(pos) # even if something weird happens, pos will be visible
+
     def HandlePhraseTimer(self, evt):
         playTime = self.player.Tell() / 10
         phrase, startTime, endTime = self.lyrics.getCurrent(playTime)
@@ -41,7 +60,7 @@ class LyricsCtrl(wx.TextCtrl):
                               wx.TextAttr(wx.Colour(100,100,100)))
 
             self.SetStyle(phraseStart, phraseEnd, wx.TextAttr(wx.Colour(0, 0, 255)))
-            self.ShowPosition(phraseStart)
+            self.CenterPosition(phraseStart)
 
             self.lastPhrase = (phraseStart, phraseEnd)
 
