@@ -1,7 +1,7 @@
 #! /usr/bin/env python2
 
 import wx
-from wx.media import MediaCtrl
+import wx.media as wxm
 
 import os.path
 import user
@@ -10,27 +10,59 @@ import lyrics
 import lyrics3v2
 
 class LyricsCtrl(wx.TextCtrl):
-    def __init__(self, parent):
+    def __init__(self, parent, player):
         wx.TextCtrl.__init__(self, parent,
                              style = wx.TE_MULTILINE
                              | wx.TE_READONLY
                              | wx.TE_CENTRE)
+        self.player = player
         self.lyrics = None
+        self.phraseTimer = wx.Timer(self)
+        self.lastPhrase = None
+        self.Bind(wx.EVT_TIMER, self.HandlePhraseTimer, self.phraseTimer)
+        parent.Bind(wxm.EVT_MEDIA_STATECHANGED, self.HandlePlayer, self.player)
 
     def SetLyrics(self, lyrics):
         self.lyrics = lyrics
-        self.SetValue(''.join(self.lyrics.getPhrases()))
+        self.phrases = lyrics.getPhrases()
+        self.times = lyrics.getTimes()
+        self.SetValue(''.join(self.phrases))
 
+    def HandlePhraseTimer(self, evt):
+        playTime = self.player.Tell() / 10
+        phrase, startTime, endTime = self.lyrics.getCurrent(playTime)
+
+        if phrase is not None:
+            phraseStart = sum(len(p) for p in self.phrases[:phrase])
+            phraseEnd = phraseStart + len(self.phrases[phrase])
+
+            if self.lastPhrase is not None:
+                self.SetStyle(self.lastPhrase[0], self.lastPhrase[1],
+                              wx.TextAttr(wx.Colour(100,100,100)))
+
+            self.SetStyle(phraseStart, phraseEnd, wx.TextAttr(wx.Colour(0, 0, 255)))
+            self.ShowPosition(phraseStart)
+
+            self.lastPhrase = (phraseStart, phraseEnd)
+
+        if endTime is not None:
+            self.phraseTimer.Start((endTime - playTime) * 10, wx.TIMER_ONE_SHOT)
+
+    def HandlePlayer(self, evt):
+        if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
+            self.HandlePhraseTimer(None)
+        else:
+            self.phraseTimer.Stop()
 
 class KaraokePlayer(wx.Frame):
     def __init__(self, *args, **kwargs):
         wx.Frame.__init__(self, *args, **kwargs)
 
         # media widget
-        self.player = MediaCtrl(self)
+        self.player = wxm.MediaCtrl(self)
 
         # lyrics viewer
-        self.lyricsViewer = LyricsCtrl(self)
+        self.lyricsViewer = LyricsCtrl(self, self.player)
 
         # menu bar
         self.menuBar = wx.MenuBar()
@@ -152,6 +184,7 @@ class KaraokePlayer(wx.Frame):
     def HandleTimer(self, evt):
         self.timeSlider.SetMax(self.player.Length() / 1000)
         self.timeSlider.SetValue(self.player.Tell() / 1000)
+
 
 if __name__ == "__main__":
     app = wx.App(False)
