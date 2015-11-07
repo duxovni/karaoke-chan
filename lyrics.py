@@ -50,25 +50,29 @@ class Lyrics:
         """
         return copy.copy(self.times)
 
-    def getCurrentIndex(self, time):
-        """Get the index of the current phrase of the song
+    def getCurrent(self, time):
+        """Get the index, start, and end of the current phrase of the song
 
         Args:
             time (int): time in hundredths of a second
 
         Returns:
-            int. index of the phrase in self.getPhrases() that is being
-            sung at time time. If there's no phrase at time time (it's before
-            the vocals start), return -1.
+            (int, int, int). Tuple holding the index of the phrase in
+            self.getPhrases() that is being sung at time time, start
+            time of that phrase, and end time of that phrase. If
+            there's no phrase at time time (it's before the vocals
+            start), then the phrase index and start time will be
+            None. If this is the last phrase, the end time will be
+            None.
+
         """
         # Search for last entry in self.times that has a time <= time
         idx = bisect.bisect(self.times, (time, len(self.phrases))) - 1
 
-        if idx >= 0:
-            return self.times[idx][1]
-        else:
-            # the time we were given comes before any timestamps
-            return -1
+        phrase = self.times[idx][1] if idx >= 0 else None
+        start = self.times[idx][0] if idx >= 0 else None
+        end = self.times[idx+1][0] if idx+1 < len(self.times) else None
+        return (phrase, start, end)
 
     def setMetadata(self, **metadata):
         """Set the metadata for this song
@@ -94,7 +98,7 @@ class Lyrics:
                 second, when the phrase is to be sung. The list must not be
                 empty.
         """
-        phrase = '\n'.join(phrase.splitlines())
+        phrase = phrase.replace('\r\n', '\n')
         self.phrases.append(phrase)
         for time in times:
             bisect.insort(self.times, (time, len(self.phrases)-1))
