@@ -79,6 +79,7 @@ class KaraokePlayer(wx.Frame):
 
         # media widget
         self.player = wxm.MediaCtrl(self)
+        self.Bind(wxm.EVT_MEDIA_FINISHED, self.HandleStop, self.player)
 
         # lyrics viewer
         self.lyricsViewer = LyricsCtrl(self, self.player)
@@ -99,7 +100,11 @@ class KaraokePlayer(wx.Frame):
         self.stopButton = wx.Button(self, label="Stop")
         self.muteButton = wx.ToggleButton(self, label="Mute")
         self.volumeSlider = wx.Slider(self, minValue=0, maxValue=100, size=(100, -1))
+        self.volumeLabel = wx.StaticText(self, size=(50,-1), label="0%",
+                                         style = wx.ALIGN_RIGHT | wx.ST_NO_AUTORESIZE)
         self.timeSlider = wx.Slider(self, minValue=0, maxValue=0)
+        self.timeLabel = wx.StaticText(self, size=(100, -1), label="0:00/0:00",
+                                       style = wx.ALIGN_RIGHT | wx.ST_NO_AUTORESIZE)
 
         self.Bind(wx.EVT_TOGGLEBUTTON, self.HandlePlayPause, self.playPauseButton)
         self.Bind(wx.EVT_BUTTON, self.HandleStop, self.stopButton)
@@ -109,14 +114,20 @@ class KaraokePlayer(wx.Frame):
 
         # sizers
         self.buttonSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.buttonSizer.Add(self.playPauseButton, 0, wx.ALL, 10)
-        self.buttonSizer.Add(self.stopButton, 0, wx.ALL, 10)
-        self.buttonSizer.Add(self.muteButton, 0, wx.ALL | wx.ALIGN_RIGHT, 10)
-        self.buttonSizer.Add(self.volumeSlider, 0, wx.ALL | wx.ALIGN_RIGHT, 10)
+        self.buttonSizer.Add(self.playPauseButton, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
+        self.buttonSizer.Add(self.stopButton, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
+        self.buttonSizer.AddStretchSpacer()
+        self.buttonSizer.Add(self.muteButton, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
+        self.buttonSizer.Add(self.volumeSlider, 0, wx.ALIGN_CENTER_VERTICAL)
+        self.buttonSizer.Add(self.volumeLabel, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
+
+        self.timeSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.timeSizer.Add(self.timeSlider, 1, wx.ALIGN_CENTER_VERTICAL)
+        self.timeSizer.Add(self.timeLabel, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
 
         self.controlSizer = wx.BoxSizer(wx.VERTICAL)
-        self.controlSizer.Add(self.timeSlider, 0, wx.EXPAND)
-        self.controlSizer.Add(self.buttonSizer, 0)
+        self.controlSizer.Add(self.timeSizer, 0, wx.EXPAND)
+        self.controlSizer.Add(self.buttonSizer, 0, wx.EXPAND)
 
         self.viewerSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.viewerSizer.Add(self.player, 1, wx.EXPAND)
@@ -170,6 +181,8 @@ class KaraokePlayer(wx.Frame):
             self.SetTitle(u'{} - Karaoke-chan'.format(title))
 
             self.volumeSlider.SetValue(int(self.player.GetVolume() * 100))
+            self.volumeLabel.SetLabelText("{}%".format(int(self.player.GetVolume() * 100)))
+            self.HandleTimer(None)
 
     def HandleExit(self, evt):
         self.player.Stop()
@@ -188,6 +201,7 @@ class KaraokePlayer(wx.Frame):
         self.player.Stop()
         self.timeSlider.SetMax(0)
         self.timeSlider.SetValue(0)
+        self.timeLabel.SetLabelText("0:00/0:00")
         self.playPauseButton.SetValue(False)
         self.lyricsViewer.Clear()
 
@@ -199,10 +213,14 @@ class KaraokePlayer(wx.Frame):
 
     def HandleVol(self, evt):
         self.player.SetVolume(self.volumeSlider.GetValue() / 100.0)
+        self.volumeLabel.SetLabelText("{}%".format(self.volumeSlider.GetValue()))
 
     def HandleTimer(self, evt):
-        self.timeSlider.SetMax(self.player.Length() / 1000)
-        self.timeSlider.SetValue(self.player.Tell() / 1000)
+        length = self.player.Length() / 1000
+        time = self.player.Tell() / 1000
+        self.timeSlider.SetMax(length)
+        self.timeSlider.SetValue(time)
+        self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60, time%60, length/60, length%60))
 
 
 if __name__ == "__main__":
