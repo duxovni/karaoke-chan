@@ -2,7 +2,9 @@
 
 import timedtext
 
+ID3_START = "TAG"
 ID3_LENGTH = 128
+
 SIZE_LENGTH = 6
 START_TAG = "LYRICSBEGIN"
 END_TAG = "LYRICS200"
@@ -28,10 +30,13 @@ def read(filepath):
 
     with open(filepath, 'rb') as f:
         f.seek(SIZE_OFFSET, 2)
-        size = int(f.read(SIZE_LENGTH))
+        size = 0
+        try:
+            size = int(f.read(SIZE_LENGTH))
+        except ValueError:
+            raise ValueError, "Lyrics3 v2.00 size field not found in file {}".format(filepath)
         if f.read(len(END_TAG)) != END_TAG:
-            raise ValueError, "{} tag not found in file {}".format(END_TAG,
-                                                                   filepath)
+            raise ValueError, "Lyrics3 v2.00 tag not found in file {}".format(filepath)
 
         f.seek(SIZE_OFFSET - size, 2)
         return f.read(size)
@@ -44,7 +49,39 @@ def write(filepath, lyricsData):
         lyricsData (str): Lyrics3 v2.00 data, including "LYRICSBEGIN"
             but not including size descriptor and "LYRICS200" string.
     """
-    raise NotImplementedError
+    if len(lyricsData) >= 10**SIZE_LENGTH:
+        raise ValueError, "Lyrics data too long"
+
+    lyricsData = lyricsData + "{{:0{}}}".format(SIZE_LENGTH).format(len(lyricsData)) + END_TAG
+
+    with open(filepath, 'r+ab') as f:
+        # first, remove existing Lyrics3 and ID3 data, saving ID3
+        # data if it's there
+        f.seek(-ID3_LENGTH, 2)
+        id3 = f.read(ID3_LENGTH)
+
+        if id3.startswith(ID3_START):
+            # check for Lyrics3 data
+            f.seek(SIZE_OFFSET, 2)
+            size = None
+            try:
+                size = int(f.read(SIZE_LENGTH))
+            except ValueError:
+                pass
+            if size is not None and f.read(len(END_TAG)) == END_TAG:
+                # Lyrics3 data found, truncate at start of Lyrics3 data
+                f.seek(SIZE_OFFSET - size, 2)
+            else:
+                # Just ID3, truncate at start of ID3
+                f.seek(-ID3_LENGTH, 2)
+            f.truncate()
+        else:
+            id3 = ID3_START + ('\0' * (ID3_LENGTH - len(ID3_START)))
+
+        # Our file has now been truncated so that it contains no
+        # Lyrics3 or ID3 data; now we add in our Lyrics3 data and an
+        # ID3 tag.
+        f.write(lyricsData + id3)
 
 def load(lyricsData):
     """Parse Lyrics3 v2.00 data
@@ -105,4 +142,9 @@ def dump(lyrics):
         str. String containing Lyrics3 v2.00 data, including "LYRICSBEGIN"
             but not including size descriptor and "LYRICS200" string.
     """
-    raise NotImplementedError
+    lyricsData = timedtext.dump(lyrics, crlf=True)
+
+    if len(lyricsData) >= 10**FIELD_SIZE_LENGTH:
+        raise ValueError, "Lyrics too long"
+
+    return START_TAG + "LYR{{:0{}}}".format(FIELD_SIZE_LENGTH).format(len(lyricsData)) + lyricsData
