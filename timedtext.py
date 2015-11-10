@@ -62,4 +62,17 @@ def dump(lyrics, frac=False, crlf=False):
     Returns:
         str. A string containing phrases and timestamps.
     """
-    raise NotImplementedError
+    phrases = [[phrase.replace('\n', '\r\n') if crlf else phrase]
+               for phrase in lyrics.getPhrases()]
+    times = lyrics.getTimes()
+
+    for (time, idx) in times:
+        minutes = time / 6000
+        seconds = (time / 100) % 60
+        hundredths = time % 100
+        if frac:
+            phrases[idx].insert(-1, "[{:02}:{:02}.{:02}]".format(minutes, seconds, hundredths))
+        else:
+            phrases[idx].insert(-1, "[{:02}:{:02}]".format(minutes, seconds))
+
+    return ''.join(''.join(l) for l in phrases)
