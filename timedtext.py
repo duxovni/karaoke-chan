@@ -56,7 +56,8 @@ def dump(lyrics, frac=False, crlf=False):
     Kwargs:
         frac (bool): whether to include hundredths of a second in timestamps.
             If True, timestamps will be of the form [mm:ss.xx], otherwise
-            they will just be [mm:ss]. Defaults to False.
+            they will just be [mm:ss] (rounded to the nearest second).
+            Defaults to False.
         cr (bool): whether to use CRLF newlines. Defaults to False.
 
     Returns:
@@ -73,6 +74,6 @@ def dump(lyrics, frac=False, crlf=False):
         if frac:
             phrases[idx].insert(-1, "[{:02}:{:02}.{:02}]".format(minutes, seconds, hundredths))
         else:
-            phrases[idx].insert(-1, "[{:02}:{:02}]".format(minutes, seconds))
+            phrases[idx].insert(-1, "[{:02}:{:02}]".format(minutes, seconds + (1 if hundredths >= 50 else 0)))
 
     return ''.join(''.join(l) for l in phrases)
