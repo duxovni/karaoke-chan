@@ -26,9 +26,7 @@ class KaraokePlayer(wx.Frame):
 
         # media widget
         self.player = wxm.MediaCtrl(self)
-        self.Bind(wxm.EVT_MEDIA_PLAY, self.HandlePlayerPlaying, self.player)
-        self.Bind(wxm.EVT_MEDIA_PAUSE, self.HandlePlayerNotPlaying, self.player)
-        self.Bind(wxm.EVT_MEDIA_STOP, self.HandlePlayerNotPlaying, self.player)
+        self.Bind(wxm.EVT_MEDIA_STATECHANGED, self.HandlePlayer, self.player)
 
         # lyrics viewer
         self.lyricsViewer = kcw.LyricsCtrl(self, self.player)
@@ -119,6 +117,9 @@ class KaraokePlayer(wx.Frame):
         # flag to indicate which mode we're in
         self.editMode = False
 
+        # currently loaded file
+        self.filepath = None
+
         self.Show()
 
     def UpdateTime(self):
@@ -129,23 +130,60 @@ class KaraokePlayer(wx.Frame):
         self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60, time%60,
                                                                length/60, length%60))
 
-    def HandlePlayerPlaying(self, evt):
+    def HandlePlayer(self, evt):
         self.UpdateTime()
 
-        self.timer.Start(milliseconds=100)
-        self.playPauseButton.SetValue(True)
+        if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
+            self.timer.Start(milliseconds=100)
+            self.playPauseButton.SetValue(True)
+
+            if self.editMode:
+                self.lyricsEditor.SetFocus()
+                self.lyricsViewer.SetLyrics(self.lyricsEditor.GetLyrics())
+        else:
+            self.timer.Stop()
+            self.playPauseButton.SetValue(False)
+
+        self.lyricsViewer.HandlePlayer(evt)
+
+    def OpenFile(self, filepath):
+        self.filepath = filepath
+        # Show lyrics, if available
+        self.lyricsViewer.ClearLyrics()
+        if os.path.splitext(self.filepath)[1] == ".mp3":
+            try:
+                self.lyricsViewer.SetLyrics(lyrics3v2.load(lyrics3v2.read(self.filepath)))
+            except ValueError:
+                pass
+
+        self.player.Load(self.filepath)
 
         if self.editMode:
-            self.lyricsEditor.SetFocus()
+            if self.lyricsViewer.lyrics:
+                self.lyricsEditor.LoadLyrics(self.lyricsViewer.lyrics)
+            else:
+                self.lyricsEditor.Clear()
 
-    def HandlePlayerNotPlaying(self, evt):
+        # Hide lyrics viewer if there are no lyrics
+        if self.lyricsViewer.IsEmpty() and not self.editMode:
+            self.viewerSizer.Hide(self.lyricsViewer)
+        else:
+            self.viewerSizer.Show(self.lyricsViewer)
+
+        # Hide player screen if there's no video
+        if self.player.GetBestSize() == (0,0):
+            self.viewerSizer.Hide(self.player)
+        else:
+            self.viewerSizer.Show(self.player)
+
+        self.viewerSizer.Layout()
+
+        title = os.path.basename(self.filepath)
+        self.SetTitle(u'{} - Karaoke-chan'.format(title))
+
+        self.volumeSlider.SetValue(int(self.player.GetVolume() * 100))
+        self.volumeLabel.SetLabelText("{}%".format(int(self.player.GetVolume() * 100)))
         self.UpdateTime()
-
-        self.timer.Stop()
-        self.playPauseButton.SetValue(False)
-
-        if self.editMode:
-            self.lyricsViewer.SetLyrics(self.lyricsEditor.GetLyrics())
 
     def HandleOpen(self, evt):
         self.HandleStop(None)
@@ -153,38 +191,7 @@ class KaraokePlayer(wx.Frame):
         dialog = wx.FileDialog(self)
 
         if dialog.ShowModal() == wx.ID_OK:
-            filepath = dialog.GetPath()
-            filename = dialog.GetFilename()
-
-            # Show lyrics, if available
-            if os.path.splitext(filename)[1] == ".mp3":
-                try:
-                    self.lyricsViewer.SetLyrics(lyrics3v2.load(lyrics3v2.read(filepath)))
-                except ValueError:
-                    pass
-
-            self.player.Load(filepath)
-
-            # Hide lyrics viewer if there are no lyrics
-            if self.lyricsViewer.IsEmpty():
-                self.viewerSizer.Hide(self.lyricsViewer)
-            else:
-                self.viewerSizer.Show(self.lyricsViewer)
-
-            # Hide player screen if there's no video
-            if self.player.GetBestSize() == (0,0):
-                self.viewerSizer.Hide(self.player)
-            else:
-                self.viewerSizer.Show(self.player)
-
-            self.viewerSizer.Layout()
-
-            title = filename
-            self.SetTitle(u'{} - Karaoke-chan'.format(title))
-
-            self.volumeSlider.SetValue(int(self.player.GetVolume() * 100))
-            self.volumeLabel.SetLabelText("{}%".format(int(self.player.GetVolume() * 100)))
-            self.UpdateTime()
+            self.OpenFile(dialog.GetPath())
 
     def HandleExit(self, evt):
         self.player.Stop()
@@ -218,14 +225,20 @@ class KaraokePlayer(wx.Frame):
 
         self.buttonSizer.Show(self.editorButtonSizer)
         self.buttonSizer.Layout()
+        self.viewerSizer.Show(self.lyricsViewer)
         self.viewerSizer.Show(self.lyricsEditor)
         self.viewerSizer.Layout()
 
         if self.lyricsViewer.lyrics is not None:
             self.lyricsEditor.LoadLyrics(self.lyricsViewer.lyrics)
 
+        self.lyricsEditor.SetFocus()
+
     def HandleSave(self, evt):
-        pass
+        try:
+            lyrics3v2.write(self.filepath, lyrics3v2.dump(self.lyricsEditor.GetLyrics()))
+        except:
+            print "write error"
 
     def HandleClose(self, evt):
         self.editMode = False
@@ -238,6 +251,7 @@ class KaraokePlayer(wx.Frame):
         self.buttonSizer.Layout()
         self.viewerSizer.Hide(self.lyricsEditor)
         self.viewerSizer.Layout()
+        self.OpenFile(self.filepath)
 
 if __name__ == "__main__":
     app = wx.App(False)
