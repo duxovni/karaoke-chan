@@ -82,6 +82,8 @@ def write(filepath, lyricsData):
         # Lyrics3 or ID3 data; now we add in our Lyrics3 data and an
         # ID3 tag.
         f.write(lyricsData + id3)
+        f.flush()
+        f.close()
 
 def load(lyricsData):
     """Parse Lyrics3 v2.00 data

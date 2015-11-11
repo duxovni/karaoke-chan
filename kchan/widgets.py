@@ -16,15 +16,20 @@ class LyricsCtrl(wx.TextCtrl):
         self.player = player
         self.lyrics = None
         self.phraseTimer = wx.Timer(self)
-        self.lastPhrase = None
         self.Bind(wx.EVT_TIMER, self.HandlePhraseTimer, self.phraseTimer)
-        parent.Bind(wxm.EVT_MEDIA_STATECHANGED, self.HandlePlayer, self.player)
+        # parent is responsible for calling HandlePlayer on player state change
 
     def SetLyrics(self, lyrics):
         self.lyrics = lyrics
         self.phrases = lyrics.getPhrases()
         self.times = lyrics.getTimes()
         self.SetValue(''.join(self.phrases))
+
+    def ClearLyrics(self):
+        self.lyrics = None
+        self.phrases = None
+        self.times = None
+        self.Clear()
 
     def CenterPosition(self, pos):
         boxHeight = self.GetClientSize()[1]
@@ -46,6 +51,9 @@ class LyricsCtrl(wx.TextCtrl):
         self.ShowPosition(pos) # even if something weird happens, pos will be visible
 
     def HandlePhraseTimer(self, evt):
+        if self.lyrics is None:
+            return
+
         playTime = self.player.Tell() / 10
         phrase, startTime, endTime = self.lyrics.getCurrent(playTime)
 
@@ -53,10 +61,11 @@ class LyricsCtrl(wx.TextCtrl):
             phraseStart = sum(len(p) for p in self.phrases[:phrase])
             phraseEnd = phraseStart + len(self.phrases[phrase])
 
-            if self.lastPhrase is not None:
-                self.SetStyle(self.lastPhrase[0], self.lastPhrase[1],
-                              wx.TextAttr(wx.Colour(100,100,100)))
+            # if self.lastPhrase is not None:
+            #     self.SetStyle(self.lastPhrase[0], self.lastPhrase[1],
+            #                   wx.TextAttr(wx.Colour(100,100,100)))
 
+            self.SetStyle(0, self.GetLastPosition(), wx.TextAttr(wx.Colour(0, 0, 0)))
             self.SetStyle(phraseStart, phraseEnd, wx.TextAttr(wx.Colour(0, 0, 255)))
             self.CenterPosition(phraseStart)
 
