@@ -12,13 +12,23 @@ import kchan.widgets as kcw
 import kchan.timedtext as timedtext
 import kchan.formats.lyrics3v2 as lyrics3v2
 
+
+def handler(fn):
+    """Helper function to make simple event handlers"""
+    def evtHandler(evt):
+        fn()
+    return evtHandler
+
+
 class KaraokePlayer(wx.Frame):
     def __init__(self, *args, **kwargs):
         wx.Frame.__init__(self, *args, **kwargs)
 
         # media widget
         self.player = wxm.MediaCtrl(self)
-        self.Bind(wxm.EVT_MEDIA_FINISHED, self.HandleStop, self.player)
+        self.Bind(wxm.EVT_MEDIA_PLAY, self.HandlePlayerPlaying, self.player)
+        self.Bind(wxm.EVT_MEDIA_PAUSE, self.HandlePlayerNotPlaying, self.player)
+        self.Bind(wxm.EVT_MEDIA_STOP, self.HandlePlayerNotPlaying, self.player)
 
         # lyrics viewer
         self.lyricsViewer = kcw.LyricsCtrl(self, self.player)
@@ -61,7 +71,8 @@ class KaraokePlayer(wx.Frame):
 
         self.Bind(wx.EVT_TOGGLEBUTTON, self.HandlePlayPause, self.playPauseButton)
         self.Bind(wx.EVT_BUTTON, self.HandleStop, self.stopButton)
-        self.Bind(wx.EVT_BUTTON, self.HandleSetTimestamp, self.timestampButton)
+        self.Bind(wx.EVT_BUTTON, handler(self.lyricsEditor.SetTimestamp),
+                  self.timestampButton)
         self.Bind(wx.EVT_TOGGLEBUTTON, self.HandleMute, self.muteButton)
         self.Bind(wx.EVT_SLIDER, self.HandleVol, self.volumeSlider)
 #        self.Bind(wx.EVT_SLIDER, self.HandleTime, self.timeSlider)
@@ -103,12 +114,38 @@ class KaraokePlayer(wx.Frame):
 
         # timer
         self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.HandleTimer, self.timer)
+        self.Bind(wx.EVT_TIMER, handler(self.UpdateTime), self.timer)
 
         # flag to indicate which mode we're in
         self.editMode = False
 
         self.Show()
+
+    def UpdateTime(self):
+        length = self.player.Length() / 1000
+        time = self.player.Tell() / 1000
+        self.timeSlider.SetMax(length)
+        self.timeSlider.SetValue(time)
+        self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60, time%60,
+                                                               length/60, length%60))
+
+    def HandlePlayerPlaying(self, evt):
+        self.UpdateTime()
+
+        self.timer.Start(milliseconds=100)
+        self.playPauseButton.SetValue(True)
+
+        if self.editMode:
+            self.lyricsEditor.SetFocus()
+
+    def HandlePlayerNotPlaying(self, evt):
+        self.UpdateTime()
+
+        self.timer.Stop()
+        self.playPauseButton.SetValue(False)
+
+        if self.editMode:
+            self.lyricsViewer.SetLyrics(self.lyricsEditor.GetLyrics())
 
     def HandleOpen(self, evt):
         self.HandleStop(None)
@@ -147,7 +184,7 @@ class KaraokePlayer(wx.Frame):
 
             self.volumeSlider.SetValue(int(self.player.GetVolume() * 100))
             self.volumeLabel.SetLabelText("{}%".format(int(self.player.GetVolume() * 100)))
-            self.HandleTimer(None)
+            self.UpdateTime()
 
     def HandleExit(self, evt):
         self.player.Stop()
@@ -156,22 +193,11 @@ class KaraokePlayer(wx.Frame):
     def HandlePlayPause(self, evt):
         if self.playPauseButton.GetValue():
             self.player.Play()
-            self.timer.Start(milliseconds=500)
-            if self.editMode:
-                self.lyricsEditor.SetFocus()
         else:
             self.player.Pause()
-            self.timer.Stop()
-            if self.editMode:
-                self.lyricsViewer.SetLyrics(self.lyricsEditor.GetLyrics())
 
     def HandleStop(self, evt):
-        self.timer.Stop()
         self.player.Stop()
-        self.timeSlider.SetMax(0)
-        self.timeSlider.SetValue(0)
-        self.timeLabel.SetLabelText("0:00/0:00")
-        self.playPauseButton.SetValue(False)
 
     def HandleMute(self, evt):
         if self.muteButton.GetValue():
@@ -182,16 +208,6 @@ class KaraokePlayer(wx.Frame):
     def HandleVol(self, evt):
         self.player.SetVolume(self.volumeSlider.GetValue() / 100.0)
         self.volumeLabel.SetLabelText("{}%".format(self.volumeSlider.GetValue()))
-
-    def HandleTimer(self, evt):
-        length = self.player.Length() / 1000
-        time = self.player.Tell() / 1000
-        self.timeSlider.SetMax(length)
-        self.timeSlider.SetValue(time)
-        self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60, time%60, length/60, length%60))
-
-    def HandleSetTimestamp(self, evt):
-        self.lyricsEditor.SetTimestamp()
 
     def HandleEdit(self, evt):
         self.editMode = True
