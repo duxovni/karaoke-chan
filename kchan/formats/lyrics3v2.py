@@ -1,6 +1,6 @@
 #! /usr/bin/python2
 
-import timedtext
+import kchan.timedtext as timedtext
 
 ID3_START = "TAG"
 ID3_LENGTH = 128

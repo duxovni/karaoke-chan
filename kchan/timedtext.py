@@ -1,7 +1,7 @@
 #! /usr/bin/python2
 
 import re
-from lyrics import Lyrics
+from kchan.lyrics import Lyrics
 
 def load(lyricsData):
     """Parse text with timestamps into a Lyrics instance
