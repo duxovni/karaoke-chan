@@ -101,7 +101,11 @@ class KaraokePlayer(wx.Frame):
                   self.timestampButton)
         self.Bind(wx.EVT_TOGGLEBUTTON, self.HandleMute, self.muteButton)
         self.Bind(wx.EVT_SLIDER, self.HandleVol, self.volumeSlider)
-#        self.Bind(wx.EVT_SLIDER, self.HandleTime, self.timeSlider)
+
+        self.sliding = False
+        self.Bind(wx.EVT_SCROLL_THUMBTRACK, self.HandleTimeSliding, self.timeSlider)
+        self.Bind(wx.EVT_SCROLL_THUMBRELEASE, self.HandleTimeReleased, self.timeSlider)
+        self.Bind(wx.EVT_SLIDER, self.HandleTimeAny, self.timeSlider)
 
         # sizers
         self.editorButtonSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -150,13 +154,14 @@ class KaraokePlayer(wx.Frame):
 
         self.Show()
 
-    def UpdateTime(self):
-        length = self.player.Length() / 1000
-        time = self.player.Tell() / 1000
-        self.timeSlider.SetMax(length)
-        self.timeSlider.SetValue(time)
-        self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60, time%60,
-                                                               length/60, length%60))
+    def UpdateTime(self, updateSliderTime=True):
+        length = self.player.Length()
+        time = self.player.Tell()
+        if updateSliderTime:
+            self.timeSlider.SetMax(length)
+            self.timeSlider.SetValue(time)
+        self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60000, (time/1000)%60,
+                                                               length/60000, (length/1000)%60))
 
     def HandlePlayer(self, evt):
         self.UpdateTime()
@@ -170,7 +175,8 @@ class KaraokePlayer(wx.Frame):
                 self.lyricsViewer.SetLyrics(self.lyricsEditor.GetLyrics())
         else:
             self.timer.Stop()
-            self.playPauseButton.SetValue(False)
+            if not self.sliding:
+                self.playPauseButton.SetValue(False)
 
         self.lyricsViewer.HandlePlayer(evt)
 
@@ -284,6 +290,19 @@ class KaraokePlayer(wx.Frame):
         self.viewerSizer.Hide(self.lyricsEditor)
         self.viewerSizer.Layout()
         self.OpenFile(self.filepath)
+
+    def HandleTimeSliding(self, evt):
+        self.sliding = True
+        self.player.Pause()
+
+    def HandleTimeReleased(self, evt):
+        self.sliding = False
+        if self.playPauseButton.GetValue():
+            self.player.Play()
+
+    def HandleTimeAny(self, evt):
+        self.player.Seek(self.timeSlider.GetValue())
+        self.UpdateTime(updateSliderTime=False)
 
 if __name__ == "__main__":
     app = wx.App(False)
