@@ -36,14 +36,17 @@ class KaraokePlayer(wx.Frame):
 
         # menu bar
         self.menuBar = wx.MenuBar()
+        self.SetMenuBar(self.menuBar)
+
+        # file menu
         self.fileMenu = wx.Menu()
+        self.menuBar.Append(self.fileMenu, "&File")
+
         self.fileMenu.Append(wx.ID_OPEN)
         self.fileMenu.Append(wx.ID_EDIT)
         self.fileMenu.Append(wx.ID_SAVE)
         self.fileMenu.Append(wx.ID_CLOSE)
         self.fileMenu.Append(wx.ID_EXIT)
-        self.menuBar.Append(self.fileMenu, "&File")
-        self.SetMenuBar(self.menuBar)
 
         self.Bind(wx.EVT_MENU, self.HandleOpen, id=wx.ID_OPEN)
         self.Bind(wx.EVT_MENU, self.HandleEdit, id=wx.ID_EDIT)
@@ -51,9 +54,34 @@ class KaraokePlayer(wx.Frame):
         self.Bind(wx.EVT_MENU, self.HandleClose, id=wx.ID_CLOSE)
         self.Bind(wx.EVT_MENU, self.HandleExit, id=wx.ID_EXIT)
 
+        # timing menu
+        self.timingMenu = wx.Menu()
+        self.menuBar.Append(self.timingMenu, "&Timing")
+
+        self.placeholderItem = self.timingMenu.Append(wx.ID_ANY,
+                                                      "Add Timestamp Placeholder\tCTRL+SHIFT+T")
+        self.timestampItem = self.timingMenu.Append(wx.ID_ANY, "Set Timestamp\tCTRL+T")
+
+        self.Bind(wx.EVT_MENU, handler(self.lyricsEditor.AddPlaceholder),
+                  self.placeholderItem)
+        self.Bind(wx.EVT_MENU, handler(self.lyricsEditor.SetTimestamp),
+                  self.timestampItem)
+
+        # playback menu
+        self.playbackMenu = wx.Menu()
+        self.menuBar.Append(self.playbackMenu, "&Playback")
+
+        self.playPauseItem = self.playbackMenu.Append(wx.ID_ANY, "Play/Pause\tCTRL+P")
+        self.stopItem = self.playbackMenu.Append(wx.ID_ANY, "Stop\tCTRL+SHIFT+P")
+
+        self.Bind(wx.EVT_MENU, self.HandlePlayPause, self.playPauseItem)
+        self.Bind(wx.EVT_MENU, self.HandleStop, self.stopItem)
+
         # these are only enabled in Edit Mode
         self.fileMenu.Enable(wx.ID_SAVE, False)
         self.fileMenu.Enable(wx.ID_CLOSE, False)
+        for item in self.timingMenu.GetMenuItems():
+            item.Enable(False)
 
         # controls
         self.playPauseButton = wx.ToggleButton(self, label="Play/Pause")
@@ -198,10 +226,10 @@ class KaraokePlayer(wx.Frame):
         self.Close()
 
     def HandlePlayPause(self, evt):
-        if self.playPauseButton.GetValue():
-            self.player.Play()
-        else:
+        if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
             self.player.Pause()
+        else:
+            self.player.Play()
 
     def HandleStop(self, evt):
         self.player.Stop()
@@ -222,6 +250,8 @@ class KaraokePlayer(wx.Frame):
         self.fileMenu.Enable(wx.ID_EDIT, False)
         self.fileMenu.Enable(wx.ID_SAVE, True)
         self.fileMenu.Enable(wx.ID_CLOSE, True)
+        for item in self.timingMenu.GetMenuItems():
+            item.Enable(True)
 
         self.buttonSizer.Show(self.editorButtonSizer)
         self.buttonSizer.Layout()
@@ -246,6 +276,8 @@ class KaraokePlayer(wx.Frame):
         self.fileMenu.Enable(wx.ID_EDIT, True)
         self.fileMenu.Enable(wx.ID_SAVE, False)
         self.fileMenu.Enable(wx.ID_CLOSE, False)
+        for item in self.timingMenu.GetMenuItems():
+            item.Enable(False)
 
         self.buttonSizer.Hide(self.editorButtonSizer)
         self.buttonSizer.Layout()

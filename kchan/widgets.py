@@ -86,13 +86,14 @@ class LyricsEditor(wx.TextCtrl):
                              style=wx.TE_MULTILINE)
         self.player = player
 
-        self.Bind(wx.EVT_CHAR, self.HandleKey)
-
     def LoadLyrics(self, lyrics):
         self.SetValue(timedtext.dump(lyrics, frac=True))
 
     def GetLyrics(self):
         return timedtext.load(self.GetValue())
+
+    def AddPlaceholder(self):
+        self.WriteText("|")
 
     def FindNextTimestamp(self, pos=None):
         if pos is None:
@@ -118,6 +119,8 @@ class LyricsEditor(wx.TextCtrl):
             return False
 
     def SetTimestamp(self):
+        self.SetFocus()
+
         nextTimestamp = self.FindNextTimestamp()
         if not nextTimestamp:
             return False
@@ -133,9 +136,3 @@ class LyricsEditor(wx.TextCtrl):
             self.SetInsertionPoint(nextTimestamp[0])
 
         return True
-
-    def HandleKey(self, evt):
-        if evt.GetKeyCode() == wx.WXK_TAB:
-            self.SetTimestamp()
-        else:
-            evt.Skip()
