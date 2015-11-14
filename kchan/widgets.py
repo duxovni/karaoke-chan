@@ -16,8 +16,8 @@ class LyricsCtrl(wx.TextCtrl):
         self.player = player
         self.lyrics = None
         self.phraseTimer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.HandlePhraseTimer, self.phraseTimer)
-        # parent is responsible for calling HandlePlayer on player state change
+        self.Bind(wx.EVT_TIMER, self.OnPhraseTimer, self.phraseTimer)
+        # parent is responsible for calling OnPlayer on player state change
 
     def SetLyrics(self, lyrics):
         self.lyrics = lyrics
@@ -50,7 +50,7 @@ class LyricsCtrl(wx.TextCtrl):
         self.ShowPosition(self.XYToPosition(0, bottomLine))
         self.ShowPosition(pos) # even if something weird happens, pos will be visible
 
-    def HandlePhraseTimer(self, evt):
+    def OnPhraseTimer(self, evt):
         if self.lyrics is None:
             return
 
@@ -74,9 +74,9 @@ class LyricsCtrl(wx.TextCtrl):
         if endTime is not None:
             self.phraseTimer.Start((endTime - playTime) * 10, wx.TIMER_ONE_SHOT)
 
-    def HandlePlayer(self, evt):
+    def OnPlayer(self, evt):
         if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
-            self.HandlePhraseTimer(None)
+            self.OnPhraseTimer(None)
         else:
             self.phraseTimer.Stop()
 
@@ -86,7 +86,7 @@ class LyricsEditor(wx.TextCtrl):
                              style=wx.TE_MULTILINE
                              | wx.TE_PROCESS_ENTER)
         self.player = player
-        self.Bind(wx.EVT_TEXT_ENTER, self.HandleEnter, self)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnEnter, self)
 
     def LoadLyrics(self, lyrics):
         if lyrics is None:
@@ -143,6 +143,6 @@ class LyricsEditor(wx.TextCtrl):
 
         return True
 
-    def HandleEnter(self, evt):
+    def OnEnter(self, evt):
         self.WriteText("\n")
         self.AddPlaceholder()
