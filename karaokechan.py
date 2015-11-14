@@ -20,6 +20,26 @@ def handler(fn):
     return evtHandler
 
 
+class SaveDialog(wx.Dialog):
+    def __init__(self, parent):
+        wx.Dialog.__init__(self, parent, title="Save changes?")
+        label = wx.StaticText(self, label="You have unsaved changes. Save before closing?")
+
+        buttonSizer = wx.StdDialogButtonSizer()
+        buttonSizer.AddButton(wx.Button(self, wx.ID_SAVE))
+        buttonSizer.AddButton(wx.Button(self, wx.ID_NO))
+        buttonSizer.AddButton(wx.Button(self, wx.ID_CANCEL))
+        buttonSizer.Realize()
+        self.Bind(wx.EVT_BUTTON, self.HandleButton)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(label, 0, wx.EXPAND | wx.ALL, 10)
+        sizer.Add(buttonSizer, 0, wx.EXPAND | wx.ALL, 10)
+        self.SetSizerAndFit(sizer)
+
+    def HandleButton(self, evt):
+        self.EndModal(evt.GetId())
+
 class KaraokePlayer(wx.Frame):
     def __init__(self, *args, **kwargs):
         wx.Frame.__init__(self, *args, **kwargs)
@@ -43,16 +63,16 @@ class KaraokePlayer(wx.Frame):
         self.menuBar.Append(self.fileMenu, "&File")
 
         self.fileMenu.Append(wx.ID_OPEN)
-        self.fileMenu.Append(wx.ID_EDIT)
+        self.fileMenu.Append(wx.ID_EDIT, "Edit Lyrics\tCTRL+E")
         self.fileMenu.Append(wx.ID_SAVE)
-        self.fileMenu.Append(wx.ID_CLOSE)
+        self.fileMenu.Append(wx.ID_CLOSE, "Close Editor")
         self.fileMenu.Append(wx.ID_EXIT)
 
         self.Bind(wx.EVT_MENU, self.HandleOpen, id=wx.ID_OPEN)
         self.Bind(wx.EVT_MENU, self.HandleEdit, id=wx.ID_EDIT)
         self.Bind(wx.EVT_MENU, self.HandleSave, id=wx.ID_SAVE)
-        self.Bind(wx.EVT_MENU, self.HandleClose, id=wx.ID_CLOSE)
-        self.Bind(wx.EVT_MENU, self.HandleExit, id=wx.ID_EXIT)
+        self.Bind(wx.EVT_MENU, self.HandleCloseEditor, id=wx.ID_CLOSE)
+        self.Bind(wx.EVT_MENU, handler(self.Close), id=wx.ID_EXIT)
 
         # timing menu
         self.timingMenu = wx.Menu()
@@ -146,6 +166,8 @@ class KaraokePlayer(wx.Frame):
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, handler(self.UpdateTime), self.timer)
 
+        self.Bind(wx.EVT_CLOSE, self.HandleClose, self)
+
         # flag to indicate which mode we're in
         self.editMode = False
 
@@ -162,6 +184,17 @@ class KaraokePlayer(wx.Frame):
             self.timeSlider.SetValue(time)
         self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60000, (time/1000)%60,
                                                                length/60000, (length/1000)%60))
+
+    def PromptSave(self):
+        saveDialog = SaveDialog(self)
+        result = saveDialog.ShowModal()
+        if result == wx.ID_SAVE:
+            self.HandleSave(None)
+            return True
+        elif result == wx.ID_NO:
+            return True
+        else:
+            return False
 
     def HandlePlayer(self, evt):
         self.UpdateTime()
@@ -193,10 +226,7 @@ class KaraokePlayer(wx.Frame):
         self.player.Load(self.filepath)
 
         if self.editMode:
-            if self.lyricsViewer.lyrics:
-                self.lyricsEditor.LoadLyrics(self.lyricsViewer.lyrics)
-            else:
-                self.lyricsEditor.Clear()
+            self.lyricsEditor.LoadLyrics(self.lyricsViewer.lyrics)
 
         # Hide lyrics viewer if there are no lyrics
         if self.lyricsViewer.IsEmpty() and not self.editMode:
@@ -227,9 +257,12 @@ class KaraokePlayer(wx.Frame):
         if dialog.ShowModal() == wx.ID_OK:
             self.OpenFile(dialog.GetPath())
 
-    def HandleExit(self, evt):
-        self.player.Stop()
-        self.Close()
+    def HandleClose(self, evt):
+        if evt.CanVeto():
+            self.player.Stop()
+            if self.editMode and self.lyricsEditor.IsModified() and not self.PromptSave():
+                return
+        self.Destroy()
 
     def HandlePlayPause(self, evt):
         if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
@@ -265,18 +298,23 @@ class KaraokePlayer(wx.Frame):
         self.viewerSizer.Show(self.lyricsEditor)
         self.viewerSizer.Layout()
 
-        if self.lyricsViewer.lyrics is not None:
-            self.lyricsEditor.LoadLyrics(self.lyricsViewer.lyrics)
+        self.lyricsEditor.LoadLyrics(self.lyricsViewer.lyrics)
 
         self.lyricsEditor.SetFocus()
 
     def HandleSave(self, evt):
         try:
             lyrics3v2.write(self.filepath, lyrics3v2.dump(self.lyricsEditor.GetLyrics()))
+            self.lyricsEditor.DiscardEdits()
         except:
             print "write error"
 
-    def HandleClose(self, evt):
+    def HandleCloseEditor(self, evt):
+        self.player.Stop()
+
+        if self.lyricsEditor.IsModified() and not self.PromptSave():
+            return
+
         self.editMode = False
 
         self.fileMenu.Enable(wx.ID_EDIT, True)

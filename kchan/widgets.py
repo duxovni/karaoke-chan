@@ -89,7 +89,11 @@ class LyricsEditor(wx.TextCtrl):
         self.Bind(wx.EVT_TEXT_ENTER, self.HandleEnter, self)
 
     def LoadLyrics(self, lyrics):
-        self.SetValue(timedtext.dump(lyrics, frac=True))
+        if lyrics is None:
+            self.Clear()
+        else:
+            self.SetValue(timedtext.dump(lyrics, frac=True))
+        self.DiscardEdits()
 
     def GetLyrics(self):
         return timedtext.load(self.GetValue().replace("[]", ""))
