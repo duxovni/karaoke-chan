@@ -30,14 +30,14 @@ class SaveDialog(wx.Dialog):
         buttonSizer.AddButton(wx.Button(self, wx.ID_NO))
         buttonSizer.AddButton(wx.Button(self, wx.ID_CANCEL))
         buttonSizer.Realize()
-        self.Bind(wx.EVT_BUTTON, self.HandleButton)
+        self.Bind(wx.EVT_BUTTON, self.OnButton)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(label, 0, wx.EXPAND | wx.ALL, 10)
         sizer.Add(buttonSizer, 0, wx.EXPAND | wx.ALL, 10)
         self.SetSizerAndFit(sizer)
 
-    def HandleButton(self, evt):
+    def OnButton(self, evt):
         self.EndModal(evt.GetId())
 
 class KaraokePlayer(wx.Frame):
@@ -46,7 +46,7 @@ class KaraokePlayer(wx.Frame):
 
         # media widget
         self.player = wxm.MediaCtrl(self)
-        self.Bind(wxm.EVT_MEDIA_STATECHANGED, self.HandlePlayer, self.player)
+        self.Bind(wxm.EVT_MEDIA_STATECHANGED, self.OnPlayer, self.player)
 
         # lyrics viewer
         self.lyricsViewer = kcw.LyricsCtrl(self, self.player)
@@ -68,10 +68,10 @@ class KaraokePlayer(wx.Frame):
         self.fileMenu.Append(wx.ID_CLOSE, "Close Editor")
         self.fileMenu.Append(wx.ID_EXIT)
 
-        self.Bind(wx.EVT_MENU, self.HandleOpen, id=wx.ID_OPEN)
-        self.Bind(wx.EVT_MENU, self.HandleEdit, id=wx.ID_EDIT)
-        self.Bind(wx.EVT_MENU, self.HandleSave, id=wx.ID_SAVE)
-        self.Bind(wx.EVT_MENU, self.HandleCloseEditor, id=wx.ID_CLOSE)
+        self.Bind(wx.EVT_MENU, self.OnOpen, id=wx.ID_OPEN)
+        self.Bind(wx.EVT_MENU, self.OnEdit, id=wx.ID_EDIT)
+        self.Bind(wx.EVT_MENU, self.OnSave, id=wx.ID_SAVE)
+        self.Bind(wx.EVT_MENU, self.OnCloseEditor, id=wx.ID_CLOSE)
         self.Bind(wx.EVT_MENU, handler(self.Close), id=wx.ID_EXIT)
 
         # timing menu
@@ -94,8 +94,8 @@ class KaraokePlayer(wx.Frame):
         self.playPauseItem = self.playbackMenu.Append(wx.ID_ANY, "Play/Pause\tCTRL+P")
         self.stopItem = self.playbackMenu.Append(wx.ID_ANY, "Stop\tCTRL+SHIFT+P")
 
-        self.Bind(wx.EVT_MENU, self.HandlePlayPause, self.playPauseItem)
-        self.Bind(wx.EVT_MENU, self.HandleStop, self.stopItem)
+        self.Bind(wx.EVT_MENU, self.OnPlayPause, self.playPauseItem)
+        self.Bind(wx.EVT_MENU, self.OnStop, self.stopItem)
 
         # these are only enabled in Edit Mode
         self.fileMenu.Enable(wx.ID_SAVE, False)
@@ -115,17 +115,17 @@ class KaraokePlayer(wx.Frame):
         self.timeLabel = wx.StaticText(self, size=(100, -1), label="0:00/0:00",
                                        style = wx.ALIGN_RIGHT | wx.ST_NO_AUTORESIZE)
 
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.HandlePlayPause, self.playPauseButton)
-        self.Bind(wx.EVT_BUTTON, self.HandleStop, self.stopButton)
+        self.Bind(wx.EVT_TOGGLEBUTTON, self.OnPlayPause, self.playPauseButton)
+        self.Bind(wx.EVT_BUTTON, self.OnStop, self.stopButton)
         self.Bind(wx.EVT_BUTTON, handler(self.lyricsEditor.SetTimestamp),
                   self.timestampButton)
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.HandleMute, self.muteButton)
-        self.Bind(wx.EVT_SLIDER, self.HandleVol, self.volumeSlider)
+        self.Bind(wx.EVT_TOGGLEBUTTON, self.OnMute, self.muteButton)
+        self.Bind(wx.EVT_SLIDER, self.OnVol, self.volumeSlider)
 
         self.sliding = False
-        self.Bind(wx.EVT_SCROLL_THUMBTRACK, self.HandleTimeSliding, self.timeSlider)
-        self.Bind(wx.EVT_SCROLL_THUMBRELEASE, self.HandleTimeReleased, self.timeSlider)
-        self.Bind(wx.EVT_SLIDER, self.HandleTimeAny, self.timeSlider)
+        self.Bind(wx.EVT_SCROLL_THUMBTRACK, self.OnTimeSliding, self.timeSlider)
+        self.Bind(wx.EVT_SCROLL_THUMBRELEASE, self.OnTimeReleased, self.timeSlider)
+        self.Bind(wx.EVT_SLIDER, self.OnTimeAny, self.timeSlider)
 
         # sizers
         self.editorButtonSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -166,7 +166,7 @@ class KaraokePlayer(wx.Frame):
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, handler(self.UpdateTime), self.timer)
 
-        self.Bind(wx.EVT_CLOSE, self.HandleClose, self)
+        self.Bind(wx.EVT_CLOSE, self.OnClose, self)
 
         # flag to indicate which mode we're in
         self.editMode = False
@@ -189,14 +189,14 @@ class KaraokePlayer(wx.Frame):
         saveDialog = SaveDialog(self)
         result = saveDialog.ShowModal()
         if result == wx.ID_SAVE:
-            self.HandleSave(None)
+            self.OnSave(None)
             return True
         elif result == wx.ID_NO:
             return True
         else:
             return False
 
-    def HandlePlayer(self, evt):
+    def OnPlayer(self, evt):
         self.UpdateTime()
 
         if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
@@ -211,7 +211,7 @@ class KaraokePlayer(wx.Frame):
             if not self.sliding:
                 self.playPauseButton.SetValue(False)
 
-        self.lyricsViewer.HandlePlayer(evt)
+        self.lyricsViewer.OnPlayer(evt)
 
     def OpenFile(self, filepath):
         self.filepath = filepath
@@ -249,41 +249,41 @@ class KaraokePlayer(wx.Frame):
         self.volumeLabel.SetLabelText("{}%".format(int(self.player.GetVolume() * 100)))
         self.UpdateTime()
 
-    def HandleOpen(self, evt):
-        self.HandleStop(None)
+    def OnOpen(self, evt):
+        self.OnStop(None)
 
         dialog = wx.FileDialog(self)
 
         if dialog.ShowModal() == wx.ID_OK:
             self.OpenFile(dialog.GetPath())
 
-    def HandleClose(self, evt):
+    def OnClose(self, evt):
         if evt.CanVeto():
             self.player.Stop()
             if self.editMode and self.lyricsEditor.IsModified() and not self.PromptSave():
                 return
         self.Destroy()
 
-    def HandlePlayPause(self, evt):
+    def OnPlayPause(self, evt):
         if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
             self.player.Pause()
         else:
             self.player.Play()
 
-    def HandleStop(self, evt):
+    def OnStop(self, evt):
         self.player.Stop()
 
-    def HandleMute(self, evt):
+    def OnMute(self, evt):
         if self.muteButton.GetValue():
             self.player.SetVolume(0)
         else:
             self.player.SetVolume(self.volumeSlider.GetValue() / 100.0)
 
-    def HandleVol(self, evt):
+    def OnVol(self, evt):
         self.player.SetVolume(self.volumeSlider.GetValue() / 100.0)
         self.volumeLabel.SetLabelText("{}%".format(self.volumeSlider.GetValue()))
 
-    def HandleEdit(self, evt):
+    def OnEdit(self, evt):
         self.editMode = True
 
         self.fileMenu.Enable(wx.ID_EDIT, False)
@@ -302,14 +302,14 @@ class KaraokePlayer(wx.Frame):
 
         self.lyricsEditor.SetFocus()
 
-    def HandleSave(self, evt):
+    def OnSave(self, evt):
         try:
             lyrics3v2.write(self.filepath, lyrics3v2.dump(self.lyricsEditor.GetLyrics()))
             self.lyricsEditor.DiscardEdits()
         except:
             print "write error"
 
-    def HandleCloseEditor(self, evt):
+    def OnCloseEditor(self, evt):
         self.player.Stop()
 
         if self.lyricsEditor.IsModified() and not self.PromptSave():
@@ -329,16 +329,16 @@ class KaraokePlayer(wx.Frame):
         self.viewerSizer.Layout()
         self.OpenFile(self.filepath)
 
-    def HandleTimeSliding(self, evt):
+    def OnTimeSliding(self, evt):
         self.sliding = True
         self.player.Pause()
 
-    def HandleTimeReleased(self, evt):
+    def OnTimeReleased(self, evt):
         self.sliding = False
         if self.playPauseButton.GetValue():
             self.player.Play()
 
-    def HandleTimeAny(self, evt):
+    def OnTimeAny(self, evt):
         self.player.Seek(self.timeSlider.GetValue())
         self.UpdateTime(updateSliderTime=False)
 
