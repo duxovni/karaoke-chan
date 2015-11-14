@@ -83,8 +83,10 @@ class LyricsCtrl(wx.TextCtrl):
 class LyricsEditor(wx.TextCtrl):
     def __init__(self, parent, player):
         wx.TextCtrl.__init__(self, parent,
-                             style=wx.TE_MULTILINE)
+                             style=wx.TE_MULTILINE
+                             | wx.TE_PROCESS_ENTER)
         self.player = player
+        self.Bind(wx.EVT_TEXT_ENTER, self.HandleEnter, self)
 
     def LoadLyrics(self, lyrics):
         self.SetValue(timedtext.dump(lyrics, frac=True))
@@ -136,3 +138,7 @@ class LyricsEditor(wx.TextCtrl):
             self.SetInsertionPoint(nextTimestamp[0])
 
         return True
+
+    def HandleEnter(self, evt):
+        self.WriteText("\n")
+        self.AddPlaceholder()
