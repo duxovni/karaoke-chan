@@ -22,7 +22,7 @@ def load(lyricsData):
     """
     lyrics = Lyrics()
 
-    terms = re.split("(\[\d\d:\d\d\]|\[\d\d:\d\d\.\d\d\])", lyricsData)
+    terms = re.split(r"(\[\d\d:\d\d\]|\[\d\d:\d\d\.\d\d\])", lyricsData)
 
     if terms[0] != "":
         lyrics.addPhrase(terms[0], [0])
@@ -31,7 +31,7 @@ def load(lyricsData):
 
     times = []
     for (t, p) in timedphrases:
-        m = re.match("\[(\d\d):(\d\d)\.?(\d\d)?\]", t)
+        m = re.match(r"\[(\d\d):(\d\d)\.?(\d\d)?\]", t)
         timeParts = m.groups('00')
         time = (int(timeParts[0]) * 6000
                 + int(timeParts[1]) * 100

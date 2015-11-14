@@ -90,17 +90,17 @@ class LyricsEditor(wx.TextCtrl):
         self.SetValue(timedtext.dump(lyrics, frac=True))
 
     def GetLyrics(self):
-        return timedtext.load(self.GetValue())
+        return timedtext.load(self.GetValue().replace("[]", ""))
 
     def AddPlaceholder(self):
-        self.WriteText("|")
+        self.WriteText("[]")
 
     def FindNextTimestamp(self, pos=None):
         if pos is None:
             pos = self.GetInsertionPoint()
 
         atPos = self.GetRange(pos, self.GetLastPosition())
-        match = re.search("\||\[\d\d:\d\d(.\d\d)?\]", atPos)
+        match = re.search(r"\[(\d\d:\d\d(.\d\d)?)?\]", atPos)
         if not match:
             return None
         return (pos + match.start(), pos + match.end())
