@@ -252,6 +252,9 @@ class KaraokePlayer(wx.Frame):
     def OnOpen(self, evt):
         self.OnStop(None)
 
+        if self.editMode and self.filepath is not None and not self.PromptSave():
+            return
+
         dialog = wx.FileDialog(self)
 
         if dialog.ShowModal() == wx.ID_OK:
