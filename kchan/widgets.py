@@ -12,7 +12,13 @@ class LyricsCtrl(wx.TextCtrl):
         wx.TextCtrl.__init__(self, parent,
                              style = wx.TE_MULTILINE
                              | wx.TE_READONLY
-                             | wx.TE_CENTRE)
+                             | wx.TE_CENTRE
+                             | wx.TE_RICH)
+        self.SetDefaultStyle(wx.TextAttr(wx.BLACK,
+                                         font=wx.Font(12,
+                                                      wx.FONTFAMILY_DEFAULT,
+                                                      wx.FONTSTYLE_NORMAL,
+                                                      wx.FONTWEIGHT_NORMAL)))
         self.player = player
         self.lyrics = None
         self.phraseTimer = wx.Timer(self)
