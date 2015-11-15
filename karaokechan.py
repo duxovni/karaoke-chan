@@ -111,7 +111,7 @@ class KaraokePlayer(wx.Frame):
         self.volumeSlider = wx.Slider(self, minValue=0, maxValue=100, size=(100, -1))
         self.volumeLabel = wx.StaticText(self, size=(50,-1), label="0%",
                                          style = wx.ALIGN_RIGHT | wx.ST_NO_AUTORESIZE)
-        self.timeSlider = wx.Slider(self, minValue=0, maxValue=0)
+        self.timeSlider = wx.Slider(self, minValue=0, maxValue=1)
         self.timeLabel = wx.StaticText(self, size=(100, -1), label="0:00/0:00",
                                        style = wx.ALIGN_RIGHT | wx.ST_NO_AUTORESIZE)
 
