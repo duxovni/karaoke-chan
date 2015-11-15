@@ -85,12 +85,18 @@ def write(filepath, lyricsData):
         f.flush()
         f.close()
 
-def load(lyricsData):
+def load(lyricsData, kcl=True):
     """Parse Lyrics3 v2.00 data
 
     Args:
         lyricsData (str): Lyrics3 v2.00 data, including "LYRICSBEGIN"
             but not including size descriptor and "LYRICS200" string.
+
+    Kwargs:
+        kcl (bool): Use KCL lyrics data if available. KCL is an ad-hoc
+        format invented for this program; it's a Lyrics3 tag identical
+        to LYR, except that the timestamps have 0.01-second precision
+        and it uses unix line endings.
 
     Returns:
         New Lyrics instance containing the lyrics data
@@ -104,7 +110,8 @@ def load(lyricsData):
 
     lyricsData = lyricsData[len(START_TAG):]
 
-    lyrics = None
+    lyrLyrics = None
+    kclLyrics = None
     metadata = {}
 
     while lyricsData:
@@ -118,7 +125,9 @@ def load(lyricsData):
         lyricsData = lyricsData[fieldSize:]
 
         if fieldId == "LYR":
-            lyrics = timedtext.load(fieldData)
+            lyrLyrics = timedtext.load(fieldData)
+        elif fieldId == "KCL":
+            kclLyrics = timedtext.load(fieldData)
         elif fieldId == "EAL":
             metadata["album"] = fieldData
         elif fieldId == "EAR":
@@ -128,25 +137,42 @@ def load(lyricsData):
         else:
             pass
 
+    lyrics = (kclLyrics if kcl else None) or lyrLyrics
     if lyrics is None:
         raise ValueError, "Lyrics not found"
 
     lyrics.setMetadata(**metadata)
     return lyrics
 
-def dump(lyrics):
+def dump(lyrics, kcl=True):
     """Dump data from Lyrics instance to Lyrics3 v2.00 format
 
     Args:
         lyrics (Lyrics): Lyrics instance to dump as Lyrics3 v2.00 data
 
+    Kwargs:
+        kcl (bool): Include KCL lyrics in addition to LYR lyrics;
+        this allows us to include higher-precision timestamps in a
+        backwards-compatible way.
+
     Returns:
         str. String containing Lyrics3 v2.00 data, including "LYRICSBEGIN"
             but not including size descriptor and "LYRICS200" string.
     """
-    lyricsData = timedtext.dump(lyrics, crlf=True)
+    lyrData = timedtext.dump(lyrics, crlf=True)
 
-    if len(lyricsData) >= 10**FIELD_SIZE_LENGTH:
+    if len(lyrData) >= 10**FIELD_SIZE_LENGTH:
         raise ValueError, "Lyrics too long"
 
-    return START_TAG + "LYR{{:0{}}}".format(FIELD_SIZE_LENGTH).format(len(lyricsData)) + lyricsData
+    lyrics3Data = (START_TAG
+              + "LYR{{:0{}}}".format(FIELD_SIZE_LENGTH).format(len(lyrData))
+              + lyrData)
+
+    if kcl:
+        kclData = timedtext.dump(lyrics, frac=True)
+        if len(kclData) >= 10**FIELD_SIZE_LENGTH:
+            raise ValueError, "Lyrics too long"
+        lyrics3Data += ("KCL{{:0{}}}".format(FIELD_SIZE_LENGTH).format(len(kclData))
+                   + kclData)
+
+    return lyrics3Data
