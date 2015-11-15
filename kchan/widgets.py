@@ -67,12 +67,8 @@ class LyricsCtrl(wx.TextCtrl):
             phraseStart = sum(len(p) for p in self.phrases[:phrase])
             phraseEnd = phraseStart + len(self.phrases[phrase])
 
-            # if self.lastPhrase is not None:
-            #     self.SetStyle(self.lastPhrase[0], self.lastPhrase[1],
-            #                   wx.TextAttr(wx.Colour(100,100,100)))
-
-            self.SetStyle(0, self.GetLastPosition(), wx.TextAttr(wx.Colour(0, 0, 0)))
-            self.SetStyle(phraseStart, phraseEnd, wx.TextAttr(wx.Colour(0, 0, 255)))
+            self.SetStyle(0, self.GetLastPosition(), wx.TextAttr(wx.BLACK))
+            self.SetStyle(phraseStart, phraseEnd, wx.TextAttr(wx.BLUE))
             self.CenterPosition(phraseStart)
 
             self.lastPhrase = (phraseStart, phraseEnd)
