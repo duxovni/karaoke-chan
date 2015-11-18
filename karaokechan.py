@@ -11,6 +11,7 @@ import kchan.lyrics as lyrics
 import kchan.widgets as kcw
 import kchan.timedtext as timedtext
 import kchan.formats.lyrics3v2 as lyrics3v2
+from kchan.pygamemediactrl import PyGameMediaCtrl
 
 
 def handler(fn):
@@ -45,7 +46,7 @@ class KaraokePlayer(wx.Frame):
         wx.Frame.__init__(self, *args, **kwargs)
 
         # media widget
-        self.player = wxm.MediaCtrl(self)
+        self.player = PyGameMediaCtrl(self)
         self.Bind(wxm.EVT_MEDIA_STATECHANGED, self.OnPlayer, self.player)
 
         # lyrics viewer
@@ -200,7 +201,7 @@ class KaraokePlayer(wx.Frame):
         self.UpdateTime()
 
         if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
-            self.timer.Start(milliseconds=100)
+            wx.CallAfter(self.timer.Start, milliseconds=100)
             self.playPauseButton.SetValue(True)
 
             if self.editMode:
