@@ -74,9 +74,10 @@ class LyricsCtrl(wx.TextCtrl):
             self.lastPhrase = (phraseStart, phraseEnd)
 
         if endTime is not None:
-            self.phraseTimer.Start((endTime - playTime) * 10, wx.TIMER_ONE_SHOT)
+            wx.CallAfter(self.phraseTimer.Start, (endTime - playTime) * 10, wx.TIMER_ONE_SHOT)
 
     def OnPlayer(self, evt):
+        print('hi')
         if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
             self.OnPhraseTimer(None)
         else:
