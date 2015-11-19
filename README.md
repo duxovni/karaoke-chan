@@ -2,9 +2,9 @@
 
 ## Synopsis
 
-Karaoke-chan is a (hopefully) cross-platform karaoke player written
-with wxPython. I wrote this because I couldn't find any free-software
-karaoke players that handled Lyrics3 lyrics.
+Karaoke-chan is a (hopefully) cross-platform karaoke player. I wrote
+this because I couldn't find any free-software karaoke players that
+handled Lyrics3 lyrics.
 
 ## Status
 
@@ -17,12 +17,9 @@ appreciated.
 ## Requirements
 
 * Python 2
-* [wxPython] (http://wxpython.org/)
-
-### Linux-specific
-
-* gstreamer 0.10
-* Whatever gstreamer plugins you need for the file formats you want to play
+* Tkinter (Python bindings for Tcl/Tk)
+* PyGame
+* AudioRead
 
 ## Usage
 
@@ -83,11 +80,10 @@ editor with Ctrl-W.
 
 ## Supported file formats
 
-Karaoke-chan uses wxPython's MediaCtrl widget to play media files;
-this, in turn, uses whatever media player is available natively on
-your system (GStreamer on Linux, QuickTime on Mac OS, and DirectShow
-on Windows). Thus, it can play whatever media formats your native
-player can.
+Karaoke-chan uses PyGame to play media files; this, in turn, uses
+whatever media player is available natively on your system (GStreamer on
+Linux, QuickTime on Mac OS, and DirectShow on Windows). Thus, it can
+play whatever media formats your native player can.
 
 Currently, creating, editing, and viewing lyrics is only supported for
 MP3 files; this will change soon. Lyrics data is embedded in MP3 files
