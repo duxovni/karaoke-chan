@@ -1,172 +1,140 @@
 #! /usr/bin/env python2
 
+
+from __future__ import division
+
 import os.path
 import user
 import re
 
-import wx
-import wx.media as wxm
+import Tkinter as tk
+import tkMessageBox
+import tkFileDialog
+import tkFont
 
 import kchan.lyrics as lyrics
 import kchan.widgets as kcw
 import kchan.timedtext as timedtext
 import kchan.formats.lyrics3v2 as lyrics3v2
+import kchan.player as player
 
 
-def handler(fn):
-    """Helper function to make simple event handlers"""
-    def evtHandler(evt):
-        fn()
-    return evtHandler
+handler = lambda fn: lambda evt: fn()
 
 
-class SaveDialog(wx.Dialog):
-    def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, title="Save changes?")
-        label = wx.StaticText(self, label="You have unsaved changes. Save before closing?")
+def save_dialog():
+    return tkMessageBox.askquestion(
+        'Save changes?', 'You have unsaved changes.  Save before closing?',
+        type=tkMessageBox.YESNOCANCEL, default=tkMessageBox.CANCEL) == 'yes'
 
-        buttonSizer = wx.StdDialogButtonSizer()
-        buttonSizer.AddButton(wx.Button(self, wx.ID_SAVE))
-        buttonSizer.AddButton(wx.Button(self, wx.ID_NO))
-        buttonSizer.AddButton(wx.Button(self, wx.ID_CANCEL))
-        buttonSizer.Realize()
-        self.Bind(wx.EVT_BUTTON, self.OnButton)
 
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(label, 0, wx.EXPAND | wx.ALL, 10)
-        sizer.Add(buttonSizer, 0, wx.EXPAND | wx.ALL, 10)
-        self.SetSizerAndFit(sizer)
-
-    def OnButton(self, evt):
-        self.EndModal(evt.GetId())
-
-class KaraokePlayer(wx.Frame):
-    def __init__(self, *args, **kwargs):
-        wx.Frame.__init__(self, *args, **kwargs)
+class KaraokePlayer(tk.Frame):
+    def __init__(self, parent=None):
+        tk.Frame.__init__(self, parent)
+        self.parent = parent
+        self.parent.title('Karaoke-chan')
 
         # media widget
-        self.player = wxm.MediaCtrl(self)
-        self.Bind(wxm.EVT_MEDIA_STATECHANGED, self.OnPlayer, self.player)
+        self.player = player.Player(self.OnPlayer)
+
+        lyricsFrame = tk.Frame(self)
+        lyricsFrame.pack(fill=tk.BOTH, expand=1)
 
         # lyrics viewer
-        self.lyricsViewer = kcw.LyricsCtrl(self, self.player)
-
+        font = tkFont.Font(root=self.parent, family='Helvetica', size='12')
+        self.lyricsViewer = kcw.LyricsCtrl(lyricsFrame, self.player, font)
+        self.lyricsViewer.pack(fill=tk.BOTH, expand=1, side=tk.LEFT)
         # lyrics editor
-        self.lyricsEditor = kcw.LyricsEditor(self, self.player)
+        self.lyricsEditor = kcw.LyricsEditor(lyricsFrame, self.player)
 
         # menu bar
-        self.menuBar = wx.MenuBar()
-        self.SetMenuBar(self.menuBar)
+        self.menuBar = tk.Menu(parent)
+        parent.config(menu=self.menuBar)
 
         # file menu
-        self.fileMenu = wx.Menu()
-        self.menuBar.Append(self.fileMenu, "&File")
+        self.fileMenu = tk.Menu(self.menuBar, tearoff=False)
+        self.menuBar.add_cascade(menu=self.fileMenu, label='File')
 
-        self.fileMenu.Append(wx.ID_OPEN)
-        self.fileMenu.Append(wx.ID_EDIT, "Edit Lyrics\tCTRL+E")
-        self.fileMenu.Append(wx.ID_SAVE)
-        self.fileMenu.Append(wx.ID_CLOSE, "Close Editor")
-        self.fileMenu.Append(wx.ID_EXIT)
+        self.fileMenu.add_command(command=self.OnOpen, label='Open',
+                                  accelerator='Ctrl+O')
+        self.bind_all('<Control-o>', handler(self.OnOpen))
+        self.fileMenu.add_command(command=self.OnEdit, label='Edit Lyrics',
+                                  accelerator='Ctrl+E')
+        self.editIndex = self.fileMenu.index(tk.END)
+        self.bind_all('<Control-e>', handler(self.OnEdit))
+        self.fileMenu.add_command(command=self.OnSave, label='Save',
+                                  accelerator='Ctrl+S', state=tk.DISABLED)
+        self.saveIndex = self.fileMenu.index(tk.END)
+        self.bind_all('<Control-s>', handler(self.OnSave))
+        self.fileMenu.add_command(command=self.OnCloseEditor,
+                                  label='Close Editor', state=tk.DISABLED)
+        self.closeEditorIndex = self.fileMenu.index(tk.END)
+        self.fileMenu.add_command(command=self.Close, label='Quit',
+                                  accelerator='Ctrl+Q')
+        self.bind_all('<Control-q>', handler(self.Close))
 
-        self.Bind(wx.EVT_MENU, self.OnOpen, id=wx.ID_OPEN)
-        self.Bind(wx.EVT_MENU, self.OnEdit, id=wx.ID_EDIT)
-        self.Bind(wx.EVT_MENU, self.OnSave, id=wx.ID_SAVE)
-        self.Bind(wx.EVT_MENU, self.OnCloseEditor, id=wx.ID_CLOSE)
-        self.Bind(wx.EVT_MENU, handler(self.Close), id=wx.ID_EXIT)
+        # some menu items are only enabled in Edit Mode
 
         # timing menu
-        self.timingMenu = wx.Menu()
-        self.menuBar.Append(self.timingMenu, "&Timing")
-
-        self.placeholderItem = self.timingMenu.Append(wx.ID_ANY,
-                                                      "Add Timestamp Placeholder\tCTRL+SHIFT+T")
-        self.timestampItem = self.timingMenu.Append(wx.ID_ANY, "Set Timestamp\tCTRL+T")
-
-        self.Bind(wx.EVT_MENU, handler(self.lyricsEditor.AddPlaceholder),
-                  self.placeholderItem)
-        self.Bind(wx.EVT_MENU, handler(self.lyricsEditor.SetTimestamp),
-                  self.timestampItem)
+        self.timingMenu = tk.Menu(self.menuBar, tearoff=False)
+        self.menuBar.add_cascade(menu=self.timingMenu, label='Timing')
+        self.timingIndex = self.menuBar.index(tk.END)
+        # Disable timing menu
+        self.menuBar.entryconfig(self.timingIndex, state=tk.DISABLED)
+        self.timingMenu.add_command(command=self.lyricsEditor.AddPlaceholder,
+                               label='Add Timestamp Placeholder',
+                               accelerator='Ctrl+Shift+T')
+        self.bind_all('<Control-T>',
+                      handler(self.lyricsEditor.AddPlaceholder))
+        self.timingMenu.add_command(command=self.lyricsEditor.SetTimestamp,
+                               label='Set Timestamp',
+                               accelerator='Ctrl+T')
+        self.bind_all('<Control-t>', handler(self.lyricsEditor.SetTimestamp))
 
         # playback menu
-        self.playbackMenu = wx.Menu()
-        self.menuBar.Append(self.playbackMenu, "&Playback")
-
-        self.playPauseItem = self.playbackMenu.Append(wx.ID_ANY, "Play/Pause\tCTRL+P")
-        self.stopItem = self.playbackMenu.Append(wx.ID_ANY, "Stop\tCTRL+SHIFT+P")
-
-        self.Bind(wx.EVT_MENU, self.OnPlayPause, self.playPauseItem)
-        self.Bind(wx.EVT_MENU, self.OnStop, self.stopItem)
-
-        # these are only enabled in Edit Mode
-        self.fileMenu.Enable(wx.ID_SAVE, False)
-        self.fileMenu.Enable(wx.ID_CLOSE, False)
-        for item in self.timingMenu.GetMenuItems():
-            item.Enable(False)
+        playbackMenu = tk.Menu(self.menuBar, tearoff=False)
+        self.menuBar.add_cascade(menu=playbackMenu, label='Playback')
+        playbackMenu.add_command(command=self.OnPlayPause, label='Play/Pause',
+                                 accelerator='Ctrl+P')
+        self.bind_all('<Control-p>', handler(self.OnPlayPause))
+        playbackMenu.add_command(command=self.OnStop, label='Stop',
+                                 accelerator='Ctrl+Shift+P')
+        self.bind_all('<Control-P>', handler(self.OnStop))
 
         # controls
-        self.playPauseButton = wx.ToggleButton(self, label="Play/Pause")
-        self.stopButton = wx.Button(self, label="Stop")
-        self.muteButton = wx.ToggleButton(self, label="Mute")
-        self.timestampButton = wx.Button(self, label="Set Timestamp")
-        self.volumeSlider = wx.Slider(self, minValue=0, maxValue=100, size=(100, -1))
-        self.volumeLabel = wx.StaticText(self, size=(50,-1), label="0%",
-                                         style = wx.ALIGN_RIGHT | wx.ST_NO_AUTORESIZE)
-        self.timeSlider = wx.Slider(self, minValue=0, maxValue=1)
-        self.timeLabel = wx.StaticText(self, size=(100, -1), label="0:00/0:00",
-                                       style = wx.ALIGN_RIGHT | wx.ST_NO_AUTORESIZE)
+        controlFrame = tk.Frame(self)
+        self.playPauseButton = tk.Button(controlFrame,
+                                         command=self.OnPlayPause,
+                                         text='Play/Pause')
+        self.playPauseButton.pack(side=tk.LEFT)
+        stopButton = tk.Button(controlFrame, command=self.OnStop, text='Stop')
+        stopButton.pack(side=tk.LEFT)
+        timestampButton = tk.Button(controlFrame,
+                                    command=self.lyricsEditor.SetTimestamp,
+                                    text='Set Timestamp')
+        timestampButton.pack()
+        self.muteButtonVar = tk.IntVar()
+        muteButton = tk.Checkbutton(controlFrame, command=self.OnMute,
+                                    text='Mute', variable=self.muteButtonVar)
+        muteButton.pack(side=tk.RIGHT)
+        self.volumeSliderVar = tk.DoubleVar()
+        self.volumeSlider = tk.Scale(controlFrame, command=handler(self.OnVol),
+                                     from_=0, to=100, length=100,
+                                     tickinterval=100, orient=tk.HORIZONTAL,
+                                     variable=self.volumeSliderVar)
+        self.volumeSlider.pack(side=tk.RIGHT)
+        controlFrame.pack(side=tk.BOTTOM, fill=tk.X, expand=0)
 
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.OnPlayPause, self.playPauseButton)
-        self.Bind(wx.EVT_BUTTON, self.OnStop, self.stopButton)
-        self.Bind(wx.EVT_BUTTON, handler(self.lyricsEditor.SetTimestamp),
-                  self.timestampButton)
-        self.Bind(wx.EVT_TOGGLEBUTTON, self.OnMute, self.muteButton)
-        self.Bind(wx.EVT_SLIDER, self.OnVol, self.volumeSlider)
-
-        self.sliding = False
-        self.Bind(wx.EVT_SCROLL_THUMBTRACK, self.OnTimeSliding, self.timeSlider)
-        self.Bind(wx.EVT_SCROLL_THUMBRELEASE, self.OnTimeReleased, self.timeSlider)
-        self.Bind(wx.EVT_SLIDER, self.OnTimeAny, self.timeSlider)
-
-        # sizers
-        self.editorButtonSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.editorButtonSizer.Add(self.timestampButton, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
-
-        self.buttonSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.buttonSizer.Add(self.playPauseButton, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
-        self.buttonSizer.Add(self.stopButton, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
-        self.buttonSizer.AddStretchSpacer()
-        self.buttonSizer.Add(self.editorButtonSizer, 0, wx.EXPAND)
-        self.buttonSizer.Hide(self.editorButtonSizer) # only shown in Edit Mode
-        self.buttonSizer.AddStretchSpacer()
-        self.buttonSizer.Add(self.muteButton, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
-        self.buttonSizer.Add(self.volumeSlider, 0, wx.ALIGN_CENTER_VERTICAL)
-        self.buttonSizer.Add(self.volumeLabel, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
-
-        self.timeSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.timeSizer.Add(self.timeSlider, 1, wx.ALIGN_CENTER_VERTICAL)
-        self.timeSizer.Add(self.timeLabel, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 10)
-
-        self.controlSizer = wx.BoxSizer(wx.VERTICAL)
-        self.controlSizer.Add(self.timeSizer, 0, wx.EXPAND)
-        self.controlSizer.Add(self.buttonSizer, 0, wx.EXPAND)
-
-        self.viewerSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.viewerSizer.Add(self.player, 1, wx.EXPAND)
-        self.viewerSizer.Add(self.lyricsViewer, 1, wx.EXPAND)
-        self.viewerSizer.Add(self.lyricsEditor, 1, wx.EXPAND)
-        self.viewerSizer.Hide(self.lyricsEditor)
-
-        self.mainSizer = wx.BoxSizer(wx.VERTICAL)
-        self.mainSizer.Add(self.viewerSizer, 1, wx.EXPAND)
-        self.mainSizer.Add(self.controlSizer, 0, wx.EXPAND)
-
-        self.SetSizerAndFit(self.mainSizer)
-
-        # timer
-        self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, handler(self.UpdateTime), self.timer)
-
-        self.Bind(wx.EVT_CLOSE, self.OnClose, self)
+        timeFrame = tk.Frame(self)
+        self.timeSliderVar = tk.DoubleVar()
+        self.timeSlider = tk.Scale(timeFrame, command=handler(self.OnTimeAny),
+                                   from_=0, to=1, orient=tk.HORIZONTAL,
+                                   tickinterval=10, resolution=1/1000,
+                                   variable=self.timeSliderVar)
+        self.timeSlider.pack(fill=tk.X, expand=1)
+        self.timeLabel = tk.Label(timeFrame, text='0:00/0:00')
+        self.timeLabel.pack(side=tk.RIGHT)
+        timeFrame.pack(side=tk.BOTTOM, fill=tk.X, expand=0)
 
         # flag to indicate which mode we're in
         self.editMode = False
@@ -174,52 +142,54 @@ class KaraokePlayer(wx.Frame):
         # currently loaded file
         self.filepath = None
 
-        self.Show()
+        self.timer = None
+
+        self.pack(fill=tk.BOTH, expand=1)
 
     def UpdateTime(self, updateSliderTime=True):
         length = self.player.Length()
         time = self.player.Tell()
         if updateSliderTime:
-            self.timeSlider.SetMax(length)
-            self.timeSlider.SetValue(time)
-        self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60000, (time/1000)%60,
-                                                               length/60000, (length/1000)%60))
+            self.timeSlider.config(to=length / 1000)
+            self.timeSlider.set(time / 1000)
+        self.timeLabel.config(text="{}:{:02}/{}:{:02}".format(
+                int(time / 60000), int(time / 1000) % 60,
+                int(length / 60000), int(length / 1000) % 60))
+        if self.player.playing():
+            self.timer = self.after(100, self.UpdateTime)
 
     def PromptSave(self):
-        saveDialog = SaveDialog(self)
-        result = saveDialog.ShowModal()
-        if result == wx.ID_SAVE:
-            self.OnSave(None)
+        try:
+            if save_dialog():
+                self.OnSave()
             return True
-        elif result == wx.ID_NO:
-            return True
-        else:
+        except Exception:
             return False
 
-    def OnPlayer(self, evt):
+    def OnPlayer(self):
         self.UpdateTime()
 
-        if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
-            self.timer.Start(milliseconds=100)
-            self.playPauseButton.SetValue(True)
+        if self.player.playing():
+            self.timer = self.after(100, self.UpdateTime)
 
             if self.editMode:
-                self.lyricsEditor.SetFocus()
+                self.lyricsEditor.focus_set()
                 self.lyricsViewer.SetLyrics(self.lyricsEditor.GetLyrics())
-        else:
-            self.timer.Stop()
-            if not self.sliding:
-                self.playPauseButton.SetValue(False)
+        elif self.timer is not None:
+            self.after_cancel(self.timer)
 
-        self.lyricsViewer.OnPlayer(evt)
+        self.lyricsViewer.OnPlayer()
 
     def OpenFile(self, filepath):
         self.filepath = filepath
         # Show lyrics, if available
         self.lyricsViewer.ClearLyrics()
-        if os.path.splitext(self.filepath)[1] == ".mp3":
+        haveLyrics = False
+        if os.path.splitext(self.filepath)[1] == '.mp3':
             try:
-                self.lyricsViewer.SetLyrics(lyrics3v2.load(lyrics3v2.read(self.filepath)))
+                self.lyricsViewer.SetLyrics(
+                    lyrics3v2.load(lyrics3v2.read(self.filepath)))
+                haveLyrics = True
             except ValueError:
                 pass
 
@@ -229,124 +199,114 @@ class KaraokePlayer(wx.Frame):
             self.lyricsEditor.LoadLyrics(self.lyricsViewer.lyrics)
 
         # Hide lyrics viewer if there are no lyrics
-        if self.lyricsViewer.IsEmpty() and not self.editMode:
-            self.viewerSizer.Hide(self.lyricsViewer)
+        if not haveLyrics and not self.editMode:
+            self.lyricsViewer.pack_forget()
         else:
-            self.viewerSizer.Show(self.lyricsViewer)
-
-        # Hide player screen if there's no video
-        if self.player.GetBestSize() == (0,0):
-            self.viewerSizer.Hide(self.player)
-        else:
-            self.viewerSizer.Show(self.player)
-
-        self.viewerSizer.Layout()
+            self.lyricsViewer.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
 
         title = os.path.basename(self.filepath)
-        self.SetTitle(u'{} - Karaoke-chan'.format(title))
+        self.parent.title(u'{} - Karaoke-chan'.format(title))
 
-        self.volumeSlider.SetValue(int(self.player.GetVolume() * 100))
-        self.volumeLabel.SetLabelText("{}%".format(int(self.player.GetVolume() * 100)))
+        self.volumeSlider.set(int(self.player.GetVolume() * 100))
         self.UpdateTime()
 
-    def OnOpen(self, evt):
-        self.OnStop(None)
+    def OnOpen(self):
+        self.OnStop()
 
         if self.editMode and self.filepath is not None and not self.PromptSave():
             return
 
-        dialog = wx.FileDialog(self)
+        path = tkFileDialog.askopenfilename(
+            defaultextension='.mp3',
+            filetypes=[('MP3 files', '*.mp3'), ('All files', '*')])
 
-        if dialog.ShowModal() == wx.ID_OK:
-            self.OpenFile(dialog.GetPath())
+        if path:
+            self.OpenFile(path)
 
-    def OnClose(self, evt):
-        if evt.CanVeto():
-            self.player.Stop()
-            if self.editMode and self.lyricsEditor.IsModified() and not self.PromptSave():
+    def OnClose(self):
+        self.player.Stop()
+        if (self.editMode and self.lyricsEditor.edit_modified() and not
+            self.PromptSave()):
                 return
-        self.Destroy()
+        self.Close()
 
-    def OnPlayPause(self, evt):
-        if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
+    def OnPlayPause(self):
+        if self.player.playing():
             self.player.Pause()
         else:
             self.player.Play()
 
-    def OnStop(self, evt):
+    def OnStop(self):
         self.player.Stop()
+        self.UpdateTime()
 
-    def OnMute(self, evt):
-        if self.muteButton.GetValue():
+    def OnMute(self):
+        if self.muteButtonVar.get():
             self.player.SetVolume(0)
         else:
-            self.player.SetVolume(self.volumeSlider.GetValue() / 100.0)
+            self.player.SetVolume(self.volumeSlider.get() / 100)
 
-    def OnVol(self, evt):
-        self.player.SetVolume(self.volumeSlider.GetValue() / 100.0)
-        self.volumeLabel.SetLabelText("{}%".format(self.volumeSlider.GetValue()))
+    def OnVol(self):
+        vol = self.volumeSliderVar.get()
+        self.player.SetVolume(vol / 100)
 
-    def OnEdit(self, evt):
+    def OnEdit(self):
         self.editMode = True
 
-        self.fileMenu.Enable(wx.ID_EDIT, False)
-        self.fileMenu.Enable(wx.ID_SAVE, True)
-        self.fileMenu.Enable(wx.ID_CLOSE, True)
-        for item in self.timingMenu.GetMenuItems():
-            item.Enable(True)
+        self.fileMenu.entryconfig(self.editIndex, state=tk.DISABLED)
+        self.fileMenu.entryconfig(self.saveIndex, state=tk.NORMAL)
+        self.fileMenu.entryconfig(self.closeEditorIndex, state=tk.NORMAL)
+        self.menuBar.entryconfig(self.timingIndex, state=tk.NORMAL)
 
-        self.buttonSizer.Show(self.editorButtonSizer)
-        self.buttonSizer.Layout()
-        self.viewerSizer.Show(self.lyricsViewer)
-        self.viewerSizer.Show(self.lyricsEditor)
-        self.viewerSizer.Layout()
+        self.lyricsViewer.pack(fill=tk.BOTH, expand=1, side=tk.LEFT)
+        self.lyricsEditor.pack(fill=tk.BOTH, expand=1, side=tk.RIGHT)
 
         self.lyricsEditor.LoadLyrics(self.lyricsViewer.lyrics)
 
-        self.lyricsEditor.SetFocus()
+        self.lyricsEditor.focus_set()
 
-    def OnSave(self, evt):
+    def OnSave(self):
         try:
-            lyrics3v2.write(self.filepath, lyrics3v2.dump(self.lyricsEditor.GetLyrics()))
+            lyrics3v2.write(self.filepath,
+                            lyrics3v2.dump(self.lyricsEditor.GetLyrics()))
             self.lyricsEditor.DiscardEdits()
         except:
             print "write error"
 
-    def OnCloseEditor(self, evt):
+    def OnCloseEditor(self):
         self.player.Stop()
 
-        if self.lyricsEditor.IsModified() and not self.PromptSave():
+        if self.lyricsEditor.edit_modified() and not self.PromptSave():
             return
 
         self.editMode = False
 
-        self.fileMenu.Enable(wx.ID_EDIT, True)
-        self.fileMenu.Enable(wx.ID_SAVE, False)
-        self.fileMenu.Enable(wx.ID_CLOSE, False)
-        for item in self.timingMenu.GetMenuItems():
-            item.Enable(False)
+        self.fileMenu.entryconfig(self.editIndex, state=tk.NORMAL)
+        self.fileMenu.entryconfig(self.saveIndex, state=tk.DISABLED)
+        self.fileMenu.entryconfig(self.closeEditorIndex, state=tk.DISABLED)
+        self.menuBar.entryconfig(self.timingIndex, state=tk.DISABLED)
 
-        self.buttonSizer.Hide(self.editorButtonSizer)
-        self.buttonSizer.Layout()
-        self.viewerSizer.Hide(self.lyricsEditor)
-        self.viewerSizer.Layout()
-        self.OpenFile(self.filepath)
+        self.lyricsEditor.pack_forget()
+        if self.filepath:
+            self.OpenFile(self.filepath)
 
-    def OnTimeSliding(self, evt):
-        self.sliding = True
-        self.player.Pause()
-
-    def OnTimeReleased(self, evt):
-        self.sliding = False
-        if self.playPauseButton.GetValue():
-            self.player.Play()
-
-    def OnTimeAny(self, evt):
-        self.player.Seek(self.timeSlider.GetValue())
+    def OnTimeAny(self):
+        current = self.player.Tell()
+        slider = self.timeSliderVar.get() * 1000
+        if abs(current - slider) < 100:
+            return
+        self.player.Seek(slider)
         self.UpdateTime(updateSliderTime=False)
 
-if __name__ == "__main__":
-    app = wx.App(False)
-    player = KaraokePlayer(None, title="Karaoke-chan")
-    player.Show()
-    app.MainLoop()
+    def Close(self):
+        self.parent.destroy()
+
+
+def main():
+    root = tk.Tk()
+    app = KaraokePlayer(root)
+    root.mainloop()
+
+
+if __name__ == '__main__':
+    main()

@@ -1,62 +1,63 @@
 #! /usr/bin/env python2
 
+
+from __future__ import division
+
 import re
 
-import wx
-import wx.media as wxm
+import Tkinter as tk
 
 import kchan.timedtext as timedtext
 
-class LyricsCtrl(wx.TextCtrl):
-    def __init__(self, parent, player):
-        wx.TextCtrl.__init__(self, parent,
-                             style = wx.TE_MULTILINE
-                             | wx.TE_READONLY
-                             | wx.TE_CENTRE
-                             | wx.TE_RICH)
-        self.SetDefaultStyle(wx.TextAttr(wx.BLACK,
-                                         font=wx.Font(12,
-                                                      wx.FONTFAMILY_DEFAULT,
-                                                      wx.FONTSTYLE_NORMAL,
-                                                      wx.FONTWEIGHT_NORMAL)))
+
+class LyricsCtrl(tk.Text):
+    def __init__(self, parent, player, font):
+        tk.Text.__init__(self, parent, wrap=tk.WORD, state=tk.DISABLED,
+                         font=font)
         self.player = player
         self.lyrics = None
-        self.phraseTimer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.OnPhraseTimer, self.phraseTimer)
         # parent is responsible for calling OnPlayer on player state change
+        self.phraseTimer = None
+        self.font = font
+        self.tag_config('tag-center', justify='center')
 
     def SetLyrics(self, lyrics):
         self.lyrics = lyrics
         self.phrases = lyrics.getPhrases()
         self.times = lyrics.getTimes()
-        self.SetValue(''.join(self.phrases))
+        self.config(state=tk.NORMAL)
+        self.delete('0.0', tk.END)
+        self.insert('0.0', ''.join(self.phrases), 'tag-center')
+        self.config(state=tk.DISABLED)
 
     def ClearLyrics(self):
         self.lyrics = None
         self.phrases = None
         self.times = None
-        self.Clear()
+        self.config(state=tk.NORMAL)
+        self.delete('0.0', tk.END)
+        self.config(state=tk.DISABLED)
 
     def CenterPosition(self, pos):
-        boxHeight = self.GetClientSize()[1]
-        lineHeight = self.GetDefaultStyle().GetFont().GetPixelSize().GetHeight()
-        lineCount = boxHeight / lineHeight
+        boxHeight = self.winfo_height()
+        lineHeight = self.font.metrics('linespace')
+        lineCount = boxHeight // lineHeight
 
-        currentLine = self.PositionToXY(pos)[1]
-        lastLine = self.PositionToXY(self.GetLastPosition())[1]
+        currentLine = int(self.index(pos).split('.')[0])
+        lastLine = int(self.index(tk.END + '-1c').split('.')[0])
 
-        # As long as lineCount is nonzero, (lineCount-1)/2 and
-        # lineCount/2 must be two nonnegative numbers with sum
-        # lineCount-1, so the number of lines from topLine to
+        # As long as lineCount is nonzero, (lineCount - 1) / 2 and
+        # lineCount / 2 must be two nonnegative numbers with sum
+        # lineCount - 1, so the number of lines from topLine to
         # bottomLine inclusive will be exactly lineCount.
-        topLine = max(currentLine - (lineCount-1)/2, 0)
-        bottomLine = min(currentLine + lineCount/2, lastLine)
+        topLine = max(currentLine - (lineCount - 1) // 2, 0)
+        bottomLine = min(currentLine + lineCount // 2, lastLine)
 
-        self.ShowPosition(self.XYToPosition(0, topLine))
-        self.ShowPosition(self.XYToPosition(0, bottomLine))
-        self.ShowPosition(pos) # even if something weird happens, pos will be visible
+        self.see('{}.0'.format(topLine))
+        self.see('{}.0'.format(bottomLine))
+        self.see(pos) # even if something weird happens, pos will be visible
 
-    def OnPhraseTimer(self, evt):
+    def OnPhraseTimer(self):
         if self.lyrics is None:
             return
 
@@ -67,84 +68,80 @@ class LyricsCtrl(wx.TextCtrl):
             phraseStart = sum(len(p) for p in self.phrases[:phrase])
             phraseEnd = phraseStart + len(self.phrases[phrase])
 
-            self.SetStyle(0, self.GetLastPosition(), wx.TextAttr(wx.BLACK))
-            self.SetStyle(phraseStart, phraseEnd, wx.TextAttr(wx.BLUE))
-            self.CenterPosition(phraseStart)
-
-            self.lastPhrase = (phraseStart, phraseEnd)
+            # self.tag_add('reset', 0, tk.END, wx.TextAttr(wx.BLACK))
+            self.config(state=tk.NORMAL)
+            self.tag_delete('highlight')
+            self.tag_add('highlight',
+                         '0.0 + {} chars'.format(phraseStart),
+                         '0.0 + {} chars'.format(phraseEnd))
+            self.tag_config('highlight', foreground='blue')
+            self.config(state=tk.DISABLED)
+            self.CenterPosition('0.0 + {} chars'.format(phraseStart))
 
         if endTime is not None:
-            self.phraseTimer.Start((endTime - playTime) * 10, wx.TIMER_ONE_SHOT)
+            self.phraseTimer = self.after(int((endTime - playTime) * 10),
+                                          self.OnPhraseTimer)
 
-    def OnPlayer(self, evt):
-        if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
-            self.OnPhraseTimer(None)
+    def OnPlayer(self):
+        if self.player.playing():
+            self.OnPhraseTimer()
         else:
-            self.phraseTimer.Stop()
+            if self.phraseTimer is not None:
+                self.after_cancel(self.phraseTimer)
 
-class LyricsEditor(wx.TextCtrl):
+
+class LyricsEditor(tk.Text):
     def __init__(self, parent, player):
-        wx.TextCtrl.__init__(self, parent,
-                             style=wx.TE_MULTILINE
-                             | wx.TE_PROCESS_ENTER)
+        tk.Text.__init__(self, parent, wrap=tk.WORD, undo=True)
         self.player = player
-        self.Bind(wx.EVT_TEXT_ENTER, self.OnEnter, self)
+        self.bind('<Key-Return>', (lambda evt: self.OnEnter()), self)
 
     def LoadLyrics(self, lyrics):
-        if lyrics is None:
-            self.Clear()
-        else:
-            self.SetValue(timedtext.dump(lyrics, frac=True))
-        self.DiscardEdits()
+        self.delete('0.0', tk.END)
+        if lyrics is not None:
+            self.insert('0.0', timedtext.dump(lyrics, frac=True))
+        self.edit_reset()
+        self.edit_modified(False)
 
     def GetLyrics(self):
-        return timedtext.load(self.GetValue().replace("[]", ""))
+        return timedtext.load(self.get('0.0', tk.END).replace('[]', ''))
 
     def AddPlaceholder(self):
-        self.WriteText("[]")
+        self.insert(tk.INSERT, '[]')
 
     def FindNextTimestamp(self, pos=None):
         if pos is None:
-            pos = self.GetInsertionPoint()
+            pos = tk.INSERT
 
-        atPos = self.GetRange(pos, self.GetLastPosition())
-        match = re.search(r"\[(\d\d:\d\d(.\d\d)?)?\]", atPos)
+        atPos = self.get(pos, tk.END)
+        match = re.search(r'\[(\d\d:\d\d(.\d\d)?)?\]', atPos)
         if not match:
             return None
-        return (pos + match.start(), pos + match.end())
-
-    def AtTimestamp(self):
-        nextTimestamp = self.FindNextTimestamp()
-        return nextTimestamp and nextTimestamp[0] == self.GetInsertionPoint()
-
-    def ToNextTimestamp(self):
-        nextTimestamp = self.FindNextTimestamp(self.GetInsertionPoint()
-                                               + (1 if self.AtTimestamp() else 0))
-        if nextTimestamp:
-            self.SetInsertionPoint(nextTimestamp[0])
-            return True
-        else:
-            return False
+        return ('{} + {} chars'.format(pos, match.start()),
+                '{} + {} chars'.format(pos, match.end()))
 
     def SetTimestamp(self):
-        self.SetFocus()
+        self.focus_set()
 
         nextTimestamp = self.FindNextTimestamp()
         if not nextTimestamp:
             return False
 
         playTime = self.player.Tell()
-        self.Replace(nextTimestamp[0], nextTimestamp[1],
-                     "[{:02}:{:02}.{:02}]".format(playTime / 60000,
-                                                  (playTime / 1000) % 60,
-                                                  (playTime / 10) % 100))
+        self.mark_set('ts_end', nextTimestamp[1])
+        self.delete(nextTimestamp[0], nextTimestamp[1])
+        self.insert(nextTimestamp[0],
+                    '[{:02}:{:02}.{:02}]'.format(int(playTime / 60000),
+                                                 int(playTime / 1000) % 60,
+                                                 int(playTime / 10) % 100))
 
-        nextTimestamp = self.FindNextTimestamp()
+        nextTimestamp = self.FindNextTimestamp('ts_end')
         if nextTimestamp:
-            self.SetInsertionPoint(nextTimestamp[0])
+            self.mark_set(tk.INSERT, nextTimestamp[0])
 
         return True
 
-    def OnEnter(self, evt):
-        self.WriteText("\n")
+    def OnEnter(self):
+        self.insert(tk.INSERT, '\n')
         self.AddPlaceholder()
+        return 'break'
