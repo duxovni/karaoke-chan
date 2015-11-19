@@ -1,4 +1,4 @@
-#! /usr/bin/env python2
+#!/usr/bin/env python2
 
 
 from __future__ import division
@@ -6,6 +6,7 @@ from __future__ import division
 import os.path
 import user
 import re
+import argparse
 
 import Tkinter as tk
 import tkMessageBox
@@ -29,7 +30,7 @@ def save_dialog():
 
 
 class KaraokePlayer(tk.Frame):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, filepath=None):
         tk.Frame.__init__(self, parent)
         self.parent = parent
         self.parent.title('Karaoke-chan')
@@ -139,12 +140,16 @@ class KaraokePlayer(tk.Frame):
         # flag to indicate which mode we're in
         self.editMode = False
 
-        # currently loaded file
-        self.filepath = None
-
         self.timer = None
 
         self.pack(fill=tk.BOTH, expand=1)
+
+        # currently loaded file
+        if filepath is None:
+            self.filepath = None
+        else:
+            self.OpenFile(filepath)
+
 
     def UpdateTime(self, updateSliderTime=True):
         length = self.player.Length()
@@ -303,8 +308,12 @@ class KaraokePlayer(tk.Frame):
 
 
 def main():
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('filepath', nargs='?')
+    args = argparser.parse_args()
+
     root = tk.Tk()
-    app = KaraokePlayer(root)
+    app = KaraokePlayer(root, filepath=args.filepath)
     root.mainloop()
 
 
