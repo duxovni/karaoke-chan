@@ -23,10 +23,19 @@ import kchan.player as player
 handler = lambda fn: lambda evt: fn()
 
 
+class CancelException(Exception):
+    pass
+
+
 def save_dialog():
-    return tkMessageBox.askquestion(
+    answer = tkMessageBox.askquestion(
         'Save changes?', 'You have unsaved changes.  Save before closing?',
-        type=tkMessageBox.YESNOCANCEL, default=tkMessageBox.CANCEL) == 'yes'
+        type=tkMessageBox.YESNOCANCEL, default=tkMessageBox.CANCEL)
+    if answer == 'yes':
+        return True
+    if answer == 'no':
+        return False
+    raise CancelException
 
 
 class KaraokePlayer(tk.Frame):
@@ -168,7 +177,7 @@ class KaraokePlayer(tk.Frame):
             if save_dialog():
                 self.OnSave()
             return True
-        except Exception:
+        except CancelException:
             return False
 
     def OnPlayer(self):
@@ -256,6 +265,8 @@ class KaraokePlayer(tk.Frame):
         self.player.SetVolume(vol / 100)
 
     def OnEdit(self):
+        if self.editMode:
+            return
         self.editMode = True
 
         self.fileMenu.entryconfig(self.editIndex, state=tk.DISABLED)

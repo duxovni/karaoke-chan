@@ -94,9 +94,11 @@ class LyricsEditor(tk.Text):
     def __init__(self, parent, player):
         tk.Text.__init__(self, parent, wrap=tk.WORD, undo=True)
         self.player = player
-        self.bind('<Key-Return>', (lambda evt: self.OnEnter()), self)
+        self.bind('<Key-Return>', (lambda evt: self.OnEnter()))
+        self.bind('<Key>', (lambda evt: self.edit_separator()))
 
     def LoadLyrics(self, lyrics):
+        self.edit_separator()
         self.delete('0.0', tk.END)
         if lyrics is not None:
             self.insert('0.0', timedtext.dump(lyrics, frac=True))
@@ -107,6 +109,7 @@ class LyricsEditor(tk.Text):
         return timedtext.load(self.get('0.0', tk.END).replace('[]', ''))
 
     def AddPlaceholder(self):
+        self.edit_separator()
         self.insert(tk.INSERT, '[]')
 
     def FindNextTimestamp(self, pos=None):
