@@ -19,7 +19,7 @@ class LyricsCtrl(tk.Text):
         # parent is responsible for calling OnPlayer on player state change
         self.phraseTimer = None
         self.font = font
-        self.tag_config('tag-center', justify='center')
+        self.tag_config('all', justify='center', font=font)
 
     def SetLyrics(self, lyrics):
         self.lyrics = lyrics
@@ -27,7 +27,7 @@ class LyricsCtrl(tk.Text):
         self.times = lyrics.getTimes()
         self.config(state=tk.NORMAL)
         self.delete('0.0', tk.END)
-        self.insert('0.0', ''.join(self.phrases), 'tag-center')
+        self.insert('0.0', ''.join(self.phrases), 'all')
         self.config(state=tk.DISABLED)
 
     def ClearLyrics(self):
@@ -90,6 +90,10 @@ class LyricsCtrl(tk.Text):
         else:
             if self.phraseTimer is not None:
                 self.after_cancel(self.phraseTimer)
+
+    def ChangeFont(self, font):
+        self.font = font
+        self.tag_config('all', font=font)
 
 
 class LyricsEditor(tk.Text):

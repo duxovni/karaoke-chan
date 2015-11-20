@@ -57,7 +57,9 @@ class KaraokePlayer(tk.Frame):
         lyricsFrame.pack(fill=tk.BOTH, expand=1)
 
         # lyrics viewer
-        font = tkFont.Font(root=self.parent, family='Helvetica', size='12')
+        self.font_size = 12
+        font = tkFont.Font(root=self.parent, family='Helvetica',
+                           size=self.font_size)
         self.lyricsViewer = kcw.LyricsCtrl(lyricsFrame, self.player, font)
         self.lyricsViewer.pack(fill=tk.BOTH, expand=1, side=tk.LEFT)
         # lyrics editor
@@ -122,6 +124,10 @@ class KaraokePlayer(tk.Frame):
         playbackMenu.add_command(command=self.OnStop, label='Stop',
                                  accelerator='Ctrl+Shift+P')
         self.bind_all('<Control-P>', handler(self.OnStop))
+        playbackMenu.add_command(command=lambda: self.OnFontSize(True),
+                                 label='Increase Font Size')
+        playbackMenu.add_command(command=lambda: self.OnFontSize(False),
+                                 label='Decrease Font Size')
 
         # controls
         controlFrame = tk.Frame(self)
@@ -330,6 +336,15 @@ class KaraokePlayer(tk.Frame):
 
     def Close(self):
         self.parent.destroy()
+
+    def OnFontSize(self, up):
+        if up:
+            self.font_size += 1
+        else:
+            self.font_size -= 1
+        font = tkFont.Font(root=self.parent, family='Helvetica',
+                           size=self.font_size)
+        self.lyricsViewer.ChangeFont(font)
 
 
 def main():
