@@ -170,6 +170,8 @@ class KaraokePlayer(tk.Frame):
                 int(time / 60000), int(time / 1000) % 60,
                 int(length / 60000), int(length / 1000) % 60))
         if self.player.playing():
+            if self.timer is not None:
+                self.after_cancel(self.timer)
             self.timer = self.after(100, self.UpdateTime)
 
     def PromptSave(self):
@@ -184,8 +186,6 @@ class KaraokePlayer(tk.Frame):
         self.UpdateTime()
 
         if self.player.playing():
-            self.timer = self.after(100, self.UpdateTime)
-
             if self.editMode:
                 self.lyricsEditor.focus_set()
                 self.lyricsViewer.SetLyrics(self.lyricsEditor.GetLyrics())

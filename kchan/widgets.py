@@ -79,6 +79,8 @@ class LyricsCtrl(tk.Text):
             self.CenterPosition('0.0 + {} chars'.format(phraseStart))
 
         if endTime is not None:
+            if self.phraseTimer is not None:
+                self.after_cancel(self.phraseTimer)
             self.phraseTimer = self.after(int((endTime - playTime) * 10),
                                           self.OnPhraseTimer)
 
