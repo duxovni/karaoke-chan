@@ -20,7 +20,13 @@ import kchan.formats.lyrics3v2 as lyrics3v2
 import kchan.player as player
 
 
-handler = lambda fn: lambda evt: fn()
+def brk(fn):
+    def f():
+        fn()
+        return 'break'
+    return f
+
+handler = lambda fn: lambda evt: brk(fn)()
 
 
 class CancelException(Exception):
@@ -56,6 +62,12 @@ class KaraokePlayer(tk.Frame):
         self.lyricsViewer.pack(fill=tk.BOTH, expand=1, side=tk.LEFT)
         # lyrics editor
         self.lyricsEditor = kcw.LyricsEditor(lyricsFrame, self.player)
+
+        # Move the 'Text' class bindings to the end so we can override
+        # keyboard shortcuts
+        editor_tags = self.lyricsEditor.bindtags()
+        self.lyricsEditor.bindtags(
+            tuple(t for t in editor_tags if t != 'Text') + ('Text',))
 
         # menu bar
         self.menuBar = tk.Menu(parent)
