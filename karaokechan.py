@@ -125,9 +125,15 @@ class KaraokePlayer(tk.Frame):
                                  accelerator='Ctrl+Shift+P')
         self.bind_all('<Control-P>', handler(self.OnStop))
         playbackMenu.add_command(command=lambda: self.OnFontSize(True),
-                                 label='Increase Font Size')
+                                 label='Increase Font Size',
+                                 accelerator='Ctrl+Plus')
+        self.bind_all('<Control-plus>',
+                      handler(lambda: self.OnFontSize(True)))
         playbackMenu.add_command(command=lambda: self.OnFontSize(False),
-                                 label='Decrease Font Size')
+                                 label='Decrease Font Size',
+                                 accelerator='Ctrl+Minus')
+        self.bind_all('<Control-minus>',
+                      handler(lambda: self.OnFontSize(False)))
 
         # controls
         controlFrame = tk.Frame(self)
