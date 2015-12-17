@@ -154,3 +154,6 @@ class LyricsEditor(tk.Text):
         self.insert(tk.INSERT, '\n')
         self.AddPlaceholder()
         return 'break'
+
+    def DiscardEdits(self):
+        self.edit_modified(False)
