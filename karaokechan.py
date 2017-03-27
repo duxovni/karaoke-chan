@@ -12,6 +12,9 @@ import kchan.widgets as kcw
 import kchan.timedtext as timedtext
 import kchan.formats.lyrics3v2 as lyrics3v2
 
+SLIDER_FREE = 0
+SLIDER_CHANGING = 1
+SLIDER_DRAGGING = 2
 
 def handler(fn):
     """Helper function to make simple event handlers"""
@@ -122,10 +125,10 @@ class KaraokePlayer(wx.Frame):
         self.Bind(wx.EVT_TOGGLEBUTTON, self.OnMute, self.muteButton)
         self.Bind(wx.EVT_SLIDER, self.OnVol, self.volumeSlider)
 
-        self.sliding = False
-        self.Bind(wx.EVT_SCROLL_THUMBTRACK, self.OnTimeSliding, self.timeSlider)
-        self.Bind(wx.EVT_SCROLL_THUMBRELEASE, self.OnTimeReleased, self.timeSlider)
-        self.Bind(wx.EVT_SLIDER, self.OnTimeAny, self.timeSlider)
+        self.sliderState = SLIDER_FREE
+        self.Bind(wx.EVT_SLIDER, self.OnTimeSliderChange, self.timeSlider)
+        self.Bind(wx.EVT_SCROLL_THUMBTRACK, self.OnTimeSliderDrag, self.timeSlider)
+        self.Bind(wx.EVT_SCROLL_THUMBRELEASE, self.OnTimeSliderRelease, self.timeSlider)
 
         # sizers
         self.editorButtonSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -162,9 +165,11 @@ class KaraokePlayer(wx.Frame):
 
         self.SetSizerAndFit(self.mainSizer)
 
-        # timer
-        self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, handler(self.UpdateTime), self.timer)
+        # timers
+        self.sliderUpdateTimer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, handler(self.UpdateSliderPos), self.sliderUpdateTimer)
+        self.sliderReactTimer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, handler(self.TimeSliderReact), self.sliderReactTimer)
 
         self.Bind(wx.EVT_CLOSE, self.OnClose, self)
 
@@ -176,12 +181,18 @@ class KaraokePlayer(wx.Frame):
 
         self.Show()
 
-    def UpdateTime(self, updateSliderTime=True):
+    # Updates the time slider position based on media playback
+    def UpdateSliderPos(self):
         length = self.player.Length()
         time = self.player.Tell()
-        if updateSliderTime:
-            self.timeSlider.SetMax(length)
-            self.timeSlider.SetValue(time)
+        self.timeSlider.SetMax(length)
+        self.timeSlider.SetValue(time)
+        self.UpdateTimeLabel()
+
+    # Updates the label based on the time slider position
+    def UpdateTimeLabel(self):
+        length = self.timeSlider.GetMax()
+        time = self.timeSlider.GetValue()
         self.timeLabel.SetLabelText("{}:{:02}/{}:{:02}".format(time/60000, (time/1000)%60,
                                                                length/60000, (length/1000)%60))
 
@@ -197,18 +208,19 @@ class KaraokePlayer(wx.Frame):
             return False
 
     def OnPlayer(self, evt):
-        self.UpdateTime()
+        if self.sliderState == SLIDER_FREE:
+            self.UpdateSliderPos()
 
         if self.player.GetState() == wxm.MEDIASTATE_PLAYING:
-            self.timer.Start(milliseconds=100)
+            self.sliderUpdateTimer.Start(milliseconds=100)
             self.playPauseButton.SetValue(True)
 
             if self.editMode:
                 self.lyricsEditor.SetFocus()
                 self.lyricsViewer.SetLyrics(self.lyricsEditor.GetLyrics())
         else:
-            self.timer.Stop()
-            if not self.sliding:
+            self.sliderUpdateTimer.Stop()
+            if self.sliderState == SLIDER_FREE:
                 self.playPauseButton.SetValue(False)
 
         self.lyricsViewer.OnPlayer(evt)
@@ -247,7 +259,7 @@ class KaraokePlayer(wx.Frame):
 
         self.volumeSlider.SetValue(int(self.player.GetVolume() * 100))
         self.volumeLabel.SetLabelText("{}%".format(int(self.player.GetVolume() * 100)))
-        self.UpdateTime()
+        self.UpdateSliderPos()
 
     def OnOpen(self, evt):
         self.OnStop(None)
@@ -332,18 +344,32 @@ class KaraokePlayer(wx.Frame):
         self.viewerSizer.Layout()
         self.OpenFile(self.filepath)
 
-    def OnTimeSliding(self, evt):
-        self.sliding = True
-        self.player.Pause()
+    def OnTimeSliderChange(self, evt):
+        if self.sliderState == SLIDER_FREE:
+            self.sliderState = SLIDER_CHANGING
+            self.player.Pause()
+        self.UpdateTimeLabel()
+        if self.sliderState != SLIDER_DRAGGING:
+            self.sliderReactTimer.Start(milliseconds=100, oneShot=wx.TIMER_ONE_SHOT)
 
-    def OnTimeReleased(self, evt):
+    def OnTimeSliderDrag(self, evt):
+        if self.sliderState == SLIDER_FREE:
+            self.sliderState = SLIDER_DRAGGING
+            self.player.Pause()
+        elif self.sliderState == SLIDER_CHANGING:
+            self.sliderState = SLIDER_DRAGGING
+            self.sliderReactTimer.Stop()
+
+    def OnTimeSliderRelease(self, evt):
+        self.sliderState = SLIDER_CHANGING
+        self.sliderReactTimer.Start(milliseconds=100, oneShot=wx.TIMER_ONE_SHOT)
+
+    def TimeSliderReact(self):
+        self.sliderState = SLIDER_FREE
+        self.player.Seek(self.timeSlider.GetValue())
         self.sliding = False
         if self.playPauseButton.GetValue():
             self.player.Play()
-
-    def OnTimeAny(self, evt):
-        self.player.Seek(self.timeSlider.GetValue())
-        self.UpdateTime(updateSliderTime=False)
 
 if __name__ == "__main__":
     app = wx.App(False)
