@@ -80,11 +80,6 @@ editor with Ctrl-W.
 
 ## Supported file formats
 
-Karaoke-chan uses PyGame to play media files; this, in turn, uses
-whatever media player is available natively on your system (GStreamer on
-Linux, QuickTime on Mac OS, and DirectShow on Windows). Thus, it can
-play whatever media formats your native player can.
-
 Currently, creating, editing, and viewing lyrics is only supported for
 MP3 files; this will change soon. Lyrics data is embedded in MP3 files
 using the Lyrics3 v2.00 format, with some extra (backwards-compatible)

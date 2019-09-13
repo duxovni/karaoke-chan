@@ -227,7 +227,9 @@ class KaraokePlayer(tk.Frame):
     def OnOpen(self):
         self.OnStop()
 
-        if self.editMode and self.filepath is not None and not self.PromptSave():
+        if (self.editMode and self.filepath is not None
+            and self.lyricsEditor.edit_modified()
+            and not self.PromptSave()):
             return
 
         path = tkFileDialog.askopenfilename(
